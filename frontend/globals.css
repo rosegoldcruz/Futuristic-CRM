@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import "./styles/cyberpunk.css";
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-bgDarkest text-textPrimary antialiased font-mono;
+}
+
+/* Scrollbar - Cyberpunk Style */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 240, 255, 0.3) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.3);
+  border-radius: 999px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 240, 255, 0.5);
+}
+
+/* Glass Panel - Cyberpunk */
+.glass-panel {
+  @apply bg-surface backdrop-blur-xl border border-borderSubtle shadow-soft;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+
+/* Cyber Card with glow */
+.cyber-card-tw {
+  @apply relative bg-surface border border-borderSubtle p-6;
+  clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 15px 100%, 0 calc(100% - 15px));
+}
+
+.cyber-card-tw::before {
+  content: "";
+  @apply absolute top-0 left-0 right-0 h-0.5;
+  background: linear-gradient(90deg, transparent, #00f0ff, transparent);
+  opacity: 0.8;
+}
+
+/* Neon text utilities */
+.text-neon-cyan {
+  @apply text-cyber-cyan;
+  text-shadow: 0 0 5px rgba(0, 240, 255, 0.5);
+}
+
+.text-neon-magenta {
+  @apply text-cyber-magenta;
+  text-shadow: 0 0 5px rgba(255, 0, 255, 0.5);
+}
+
+.text-neon-yellow {
+  @apply text-cyber-yellow;
+  text-shadow: 0 0 5px rgba(255, 230, 0, 0.5);
+}
+
+/* Cyber button base */
+.btn-cyber {
+  @apply relative px-6 py-3 font-display font-semibold text-sm uppercase tracking-wider;
+  @apply border border-cyber-cyan bg-surface text-cyber-cyan;
+  @apply transition-all duration-300 cursor-pointer;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+}
+
+.btn-cyber:hover {
+  @apply bg-cyber-cyan text-bgDarkest shadow-cyberMd;
+}
+
+.btn-cyber:active {
+  transform: scale(0.98);
+}
+
+/* Cyber input */
+.input-cyber {
+  @apply w-full px-4 py-3 font-mono text-sm;
+  @apply bg-bgLight border border-borderSubtle text-textPrimary;
+  @apply transition-all duration-300;
+}
+
+.input-cyber:focus {
+  @apply outline-none border-cyber-cyan shadow-cyberSm;
+}
+
+.input-cyber::placeholder {
+  @apply text-textMuted;
+}
+
+/* Grid background */
+.cyber-grid {
+  background-image: linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+/* Scan line effect overlay */
+.scan-lines::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.1) 0px,
+    rgba(0, 0, 0, 0.1) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  opacity: 0.15;
+}
