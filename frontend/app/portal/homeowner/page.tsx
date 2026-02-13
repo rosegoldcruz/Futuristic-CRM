@@ -55,7 +55,7 @@ type Dashboard = {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"
 
-// Mock homeowner ID - In production, get from Clerk auth context
+// Mock homeowner ID for preview mode
 const HOMEOWNER_ID = 1
 
 export default function HomeownerPortalPage() {

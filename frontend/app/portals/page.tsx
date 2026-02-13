@@ -109,9 +109,8 @@ export default function PortalsPage() {
           Authentication Notice
         </h2>
         <p className="text-sm text-neutral-300">
-          In production, portal access is controlled by{" "}
-          <strong>Clerk authentication</strong>. Users are automatically routed to
-          their appropriate portal based on their role and organization membership.
+          Portal access is currently running in preview mode with mock authentication.
+          Role routing and organization-based access control can be added later.
         </p>
         <p className="mt-2 text-xs text-neutral-500">
           Current mode: Development (Mock authentication with full access)
