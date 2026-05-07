@@ -7,7 +7,7 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { mockJobs } from "@/app/lib/mockData";
 import type { Job } from "@/app/lib/mockData";
 import { DetailField, DetailModal } from "@/components/ui/detail-modal";
-import { formatHyphenLabel } from "@/app/lib/format";
+import { formatStatusLabel } from "@/app/lib/format";
 
 const MATERIAL_COLORS: Record<Job["materialStatus"], string> = {
   ordered: "bg-cyber-cyan/10 border-cyber-cyan/50 text-cyber-cyan",
@@ -198,10 +198,10 @@ export default function JobsPage() {
             <DetailField label="Install Date" value={selectedJob.installDate} />
             <DetailField label="Installer" value={selectedJob.installer} />
             <DetailField label="Supplier" value={selectedJob.supplier} />
-            <DetailField label="Material Status" value={formatHyphenLabel(selectedJob.materialStatus)} />
-            <DetailField label="Payment Status" value={selectedJob.paymentStatus} />
-            <DetailField label="QC Status" value={formatHyphenLabel(selectedJob.qcStatus)} />
-            <DetailField label="Stage" value={formatHyphenLabel(selectedJob.stage)} />
+            <DetailField label="Material Status" value={formatStatusLabel(selectedJob.materialStatus)} />
+            <DetailField label="Payment Status" value={formatStatusLabel(selectedJob.paymentStatus)} />
+            <DetailField label="QC Status" value={formatStatusLabel(selectedJob.qcStatus)} />
+            <DetailField label="Stage" value={formatStatusLabel(selectedJob.stage)} />
           </div>
           <div className="mt-3 border border-borderSubtle/80 bg-surface/40 px-3 py-2">
             <p className="text-[10px] font-display font-bold uppercase tracking-[0.15em] text-cyber-cyan/70">Next Action</p>

@@ -7,7 +7,7 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { mockLeads } from "@/app/lib/mockData";
 import type { Lead } from "@/app/lib/mockData";
 import { DetailField, DetailModal } from "@/components/ui/detail-modal";
-import { formatHyphenLabel } from "@/app/lib/format";
+import { formatStatusLabel } from "@/app/lib/format";
 
 const STATUS_COLORS: Record<Lead["status"], string> = {
   new: "bg-textMuted/20 border-textMuted/50 text-textMuted",
@@ -201,9 +201,9 @@ export default function LeadsPage() {
             <DetailField label="City" value={selectedLead.city} />
             <DetailField label="Source" value={selectedLead.source} />
             <DetailField label="Budget Range" value={selectedLead.budgetRange} />
-            <DetailField label="Status" value={selectedLead.status} />
-            <DetailField label="Priority" value={selectedLead.priority} />
-            <DetailField label="Call Disposition" value={formatHyphenLabel(selectedLead.callDisposition)} />
+            <DetailField label="Status" value={formatStatusLabel(selectedLead.status)} />
+            <DetailField label="Priority" value={formatStatusLabel(selectedLead.priority)} />
+            <DetailField label="Call Disposition" value={formatStatusLabel(selectedLead.callDisposition)} />
             <DetailField label="Next Follow-Up" value={selectedLead.nextFollowUp} />
           </div>
           <div className="mt-3 border border-borderSubtle/80 bg-surface/40 px-3 py-2">
