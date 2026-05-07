@@ -1,339 +1,120 @@
-"use client"
+// TODO: AR Visualizer — connect to rendering engine when available.
+"use client";
 
-import { useEffect, useState } from "react"
-import Link from "next/link"
-import { Eye, Image, Sparkles, Clock, CheckCircle, XCircle, RefreshCw } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { Sparkles, Box, Eye, Layers } from "lucide-react";
 
-type ARRender = {
-  id: number
-  homeowner_id?: number | null
-  job_id?: number | null
-  homeowner_name?: string | null
-  job_customer_name?: string | null
-  render_type: string
-  before_image_url?: string | null
-  after_image_url?: string | null
-  render_status: string
-  ar_session_id?: string | null
-  panel_selection?: Record<string, unknown> | null
-  thumbnail_url?: string | null
-  processing_started_at?: string | null
-  processing_completed_at?: string | null
-  created_at?: string | null
+function KpiCard({ label, value, variant = "cyan" }: { label: string; value: string | number; variant?: "cyan" | "green" | "yellow" | "magenta" }) {
+  const colors = {
+    cyan: { border: "border-cyber-cyan/30", text: "text-cyber-cyan", glow: "rgba(0,240,255,0.5)" },
+    green: { border: "border-cyber-green/30", text: "text-cyber-green", glow: "rgba(0,255,102,0.5)" },
+    yellow: { border: "border-cyber-yellow/30", text: "text-cyber-yellow", glow: "rgba(255,230,0,0.5)" },
+    magenta: { border: "border-cyber-magenta/30", text: "text-cyber-magenta", glow: "rgba(255,0,255,0.5)" },
+  };
+  const c = colors[variant];
+  return (
+    <div className={`cyber-card-tw ${c.border} shadow-cyberInset`}>
+      <p className="font-display text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">// {label}</p>
+      <p className={`mt-2 text-2xl font-bold font-display ${c.text}`} style={{ textShadow: `0 0 15px ${c.glow}` }}>{value}</p>
+    </div>
+  );
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: "bg-yellow-500/20 text-yellow-300 border-yellow-500/50",
-  processing: "bg-blue-500/20 text-blue-300 border-blue-500/50",
-  completed: "bg-emerald-500/20 text-emerald-300 border-emerald-500/50",
-  failed: "bg-red-600/20 text-red-400 border-red-600/50",
-  cancelled: "bg-slate-500/20 text-slate-300 border-slate-500/50",
-}
+const SESSIONS = [
+  { id: "AR-001", customer: "Emma Castillo", project: "Kitchen Reface", style: "Shaker White", status: "Saved", date: "2025-05-03" },
+  { id: "AR-002", customer: "James Park", project: "Full Remodel", style: "Modern Gray", status: "Shared", date: "2025-05-04" },
+  { id: "AR-003", customer: "Tony Nguyen", project: "Kitchen Reface", style: "Espresso", status: "Pending", date: "2025-05-06" },
+  { id: "AR-004", customer: "Rachel Kim", project: "Bathroom Vanity", style: "White Oak", status: "Saved", date: "2025-05-06" },
+];
 
 export default function ARVisualizerPage() {
-  const [renders, setRenders] = useState<ARRender[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [statusFilter, setStatusFilter] = useState<string>("")
-  const [typeFilter, setTypeFilter] = useState<string>("")
-
-  const [stats, setStats] = useState({
-    total: 0,
-    pending: 0,
-    processing: 0,
-    completed: 0,
-  })
-
-  async function loadRenders() {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const params = new URLSearchParams()
-      if (statusFilter) params.set("render_status", statusFilter)
-      if (typeFilter) params.set("render_type", typeFilter)
-      params.set("limit", "100")
-
-      const res = await fetch(`${API_BASE}/visualizer/?${params.toString()}`, { cache: "no-store" })
-      if (!res.ok) throw new Error(`Failed to load renders (${res.status})`)
-      const data: ARRender[] = await res.json()
-      setRenders(data)
-
-      // Calculate stats
-      const total = data.length
-      const pending = data.filter((r) => r.render_status === "pending").length
-      const processing = data.filter((r) => r.render_status === "processing").length
-      const completed = data.filter((r) => r.render_status === "completed").length
-
-      setStats({ total, pending, processing, completed })
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to load renders"
-      setError(message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadRenders()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, typeFilter])
-
-  function getStatusIcon(status: string) {
-    switch (status) {
-      case "completed":
-        return <CheckCircle className="w-4 h-4" />
-      case "processing":
-        return <RefreshCw className="w-4 h-4 animate-spin" />
-      case "failed":
-        return <XCircle className="w-4 h-4" />
-      default:
-        return <Clock className="w-4 h-4" />
-    }
-  }
-
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {/* Header */}
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">AR Visualizer</h1>
-          <p className="text-sm text-neutral-400">Before/after rendering and AR sessions</p>
+    <DashboardShell>
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <h1 className="font-display text-3xl font-bold uppercase tracking-wider text-cyber-cyan" style={{ textShadow: "0 0 20px rgba(0,240,255,0.5)" }}>
+            AR Visualizer
+          </h1>
+          <p className="text-sm text-textSecondary font-mono">// Remodel visualization and cabinet / closet preview tools</p>
         </div>
-        <Button className="bg-amber-600 hover:bg-amber-700 text-white">
-          <Sparkles className="w-4 h-4 mr-2" />
-          New Render
-        </Button>
-      </header>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-          <div className="flex items-center gap-3">
-            <Image className="h-8 w-8 text-purple-400" />
-            <div>
-              <p className="text-2xl font-bold text-white">{stats.total}</p>
-              <p className="text-xs text-neutral-400">Total Renders</p>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard label="Total Sessions" value="24" variant="cyan" />
+          <KpiCard label="Saved Designs" value="18" variant="green" />
+          <KpiCard label="Shared with Customer" value="9" variant="magenta" />
+          <KpiCard label="Converted to Quote" value="6" variant="yellow" />
+        </div>
+
+        {/* AR Preview Placeholder */}
+        <div className="cyber-card-tw border-l-4 border-l-cyber-magenta shadow-cyberInset">
+          <h2 className="mb-4 font-display text-sm font-bold uppercase tracking-[0.15em] text-cyber-magenta" style={{ textShadow: "0 0 8px rgba(255,0,255,0.4)" }}>
+            // 3D Preview Engine
+          </h2>
+          <div className="flex h-48 items-center justify-center border border-borderSubtle bg-bgDark">
+            <div className="text-center space-y-3">
+              <Sparkles className="h-10 w-10 text-cyber-magenta mx-auto" style={{ filter: "drop-shadow(0 0 8px rgba(255,0,255,0.6))" }} />
+              <p className="font-display text-sm uppercase tracking-widest text-cyber-magenta">AR Engine Loading</p>
+              <p className="text-xs text-textMuted font-mono">// 3D render module — connect WebGL engine to enable</p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-          <div className="flex items-center gap-3">
-            <Clock className="h-8 w-8 text-yellow-400" />
-            <div>
-              <p className="text-2xl font-bold text-white">{stats.pending}</p>
-              <p className="text-xs text-neutral-400">Pending</p>
-            </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="cyber-card-tw border-cyber-cyan/20 shadow-cyberInset text-center space-y-3">
+            <Box className="h-8 w-8 text-cyber-cyan mx-auto" />
+            <p className="font-display text-xs uppercase tracking-widest text-cyber-cyan">Cabinet Configurator</p>
+            <p className="text-xs text-textMuted font-mono">// Build custom cabinet layouts in 3D</p>
+            <div className="border border-borderSubtle py-1 text-[10px] text-textMuted font-mono">COMING SOON</div>
+          </div>
+          <div className="cyber-card-tw border-cyber-yellow/20 shadow-cyberInset text-center space-y-3">
+            <Layers className="h-8 w-8 text-cyber-yellow mx-auto" />
+            <p className="font-display text-xs uppercase tracking-widest text-cyber-yellow">Finish Selector</p>
+            <p className="text-xs text-textMuted font-mono">// Preview door styles, finishes, and hardware</p>
+            <div className="border border-borderSubtle py-1 text-[10px] text-textMuted font-mono">COMING SOON</div>
+          </div>
+          <div className="cyber-card-tw border-cyber-magenta/20 shadow-cyberInset text-center space-y-3">
+            <Eye className="h-8 w-8 text-cyber-magenta mx-auto" />
+            <p className="font-display text-xs uppercase tracking-widest text-cyber-magenta">Customer Preview Link</p>
+            <p className="text-xs text-textMuted font-mono">// Share AR view with homeowner for approval</p>
+            <div className="border border-borderSubtle py-1 text-[10px] text-textMuted font-mono">COMING SOON</div>
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-          <div className="flex items-center gap-3">
-            <RefreshCw className="h-8 w-8 text-blue-400" />
-            <div>
-              <p className="text-2xl font-bold text-white">{stats.processing}</p>
-              <p className="text-xs text-neutral-400">Processing</p>
-            </div>
+        {/* Sessions Table */}
+        <section className="cyber-card-tw border-l-4 border-l-cyber-cyan shadow-cyberInset overflow-x-auto p-0">
+          <div className="px-4 py-3 border-b border-borderSubtle bg-bgDark">
+            <h2 className="font-display text-sm font-bold uppercase tracking-[0.15em] text-cyber-cyan" style={{ textShadow: "0 0 8px rgba(0,240,255,0.4)" }}>
+              // Visualization Sessions
+            </h2>
           </div>
-        </div>
-
-        <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-          <div className="flex items-center gap-3">
-            <CheckCircle className="h-8 w-8 text-emerald-400" />
-            <div>
-              <p className="text-2xl font-bold text-white">{stats.completed}</p>
-              <p className="text-xs text-neutral-400">Completed</p>
-            </div>
-          </div>
-        </div>
+          <table className="min-w-full text-xs">
+            <thead>
+              <tr className="border-b border-borderSubtle bg-bgDark">
+                {["ID", "Customer", "Project", "Selected Style", "Status", "Date"].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left font-display text-[10px] uppercase tracking-[0.15em] text-cyber-cyan/70">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {SESSIONS.map((s) => (
+                <tr key={s.id} className="border-b border-borderSubtle hover:bg-surface/60 transition-colors">
+                  <td className="px-4 py-3 font-mono text-textMuted">{s.id}</td>
+                  <td className="px-4 py-3 font-medium text-textPrimary">{s.customer}</td>
+                  <td className="px-4 py-3 text-textSecondary">{s.project}</td>
+                  <td className="px-4 py-3 text-textSecondary">{s.style}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center gap-1.5 border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${s.status === "Shared" ? "bg-cyber-cyan/10 border-cyber-cyan/50 text-cyber-cyan" : s.status === "Saved" ? "bg-cyber-green/10 border-cyber-green/50 text-cyber-green" : "bg-cyber-yellow/10 border-cyber-yellow/50 text-cyber-yellow"}`}>
+                      <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
+                      {s.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-textMuted font-mono">{s.date}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
       </div>
-
-      {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-3 md:items-center">
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="w-full md:w-48 rounded-md bg-neutral-900 border border-neutral-700 px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:ring-2 focus:ring-amber-500/60"
-        >
-          <option value="">All statuses</option>
-          <option value="pending">Pending</option>
-          <option value="processing">Processing</option>
-          <option value="completed">Completed</option>
-          <option value="failed">Failed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="w-full md:w-48 rounded-md bg-neutral-900 border border-neutral-700 px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:ring-2 focus:ring-amber-500/60"
-        >
-          <option value="">All types</option>
-          <option value="before_after">Before/After</option>
-          <option value="ar_overlay">AR Overlay</option>
-          <option value="3d_model">3D Model</option>
-          <option value="roof_analysis">Roof Analysis</option>
-          <option value="panel_layout">Panel Layout</option>
-        </select>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={loadRenders}
-          disabled={loading}
-          className="border-neutral-700 text-neutral-200 hover:bg-neutral-800 md:ml-auto"
-        >
-          Refresh
-        </Button>
-      </div>
-
-      {error && (
-        <div className="rounded-md border border-red-500/50 bg-red-950/40 px-3 py-2 text-sm text-red-200">
-          {error}
-        </div>
-      )}
-
-      {/* Timeline View */}
-      <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Render Timeline</h2>
-
-        {renders.length === 0 && !loading && (
-          <div className="text-center py-12 text-neutral-500">
-            <Sparkles className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>No renders yet. Create your first AR visualization!</p>
-          </div>
-        )}
-
-        {loading && (
-          <div className="text-center py-12 text-neutral-500">
-            <RefreshCw className="w-8 h-8 mx-auto mb-3 animate-spin" />
-            <p>Loading renders...</p>
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {renders.map((render) => (
-            <div
-              key={render.id}
-              className="flex flex-col md:flex-row gap-4 p-4 rounded-lg border border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900/60 transition-colors"
-            >
-              {/* Thumbnail */}
-              <div className="flex-shrink-0">
-                <div className="w-full md:w-48 h-32 rounded-lg overflow-hidden bg-neutral-800 flex items-center justify-center">
-                  {render.thumbnail_url || render.before_image_url ? (
-                    <img
-                      src={render.thumbnail_url || render.before_image_url || ""}
-                      alt="Render thumbnail"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Image className="w-12 h-12 text-neutral-600" />
-                  )}
-                </div>
-              </div>
-
-              {/* Details */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-4 mb-2">
-                  <div>
-                    <h3 className="text-white font-medium">
-                      Render #{render.id}
-                      {render.homeowner_name && (
-                        <span className="text-neutral-400 ml-2">
-                          - {render.homeowner_name}
-                        </span>
-                      )}
-                    </h3>
-                    <p className="text-sm text-neutral-400 capitalize">
-                      {render.render_type.replace(/_/g, " ")}
-                    </p>
-                  </div>
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium capitalize ${
-                      STATUS_COLORS[render.render_status] || STATUS_COLORS.pending
-                    }`}
-                  >
-                    {getStatusIcon(render.render_status)}
-                    {render.render_status}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                  <div>
-                    <p className="text-neutral-500 text-xs mb-0.5">Job</p>
-                    <p className="text-neutral-300">
-                      {render.job_id ? (
-                        <Link href={`/jobs/${render.job_id}`} className="text-amber-400 hover:underline">
-                          #{render.job_id}
-                        </Link>
-                      ) : (
-                        "N/A"
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-neutral-500 text-xs mb-0.5">AR Session</p>
-                    <p className="text-neutral-300 truncate">
-                      {render.ar_session_id ? render.ar_session_id.slice(0, 12) + "..." : "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-neutral-500 text-xs mb-0.5">Created</p>
-                    <p className="text-neutral-300">
-                      {render.created_at ? new Date(render.created_at).toLocaleDateString() : "N/A"}
-                    </p>
-                  </div>
-                  <div className="flex justify-end items-center">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-amber-400 hover:text-amber-200 hover:bg-amber-950/60"
-                      onClick={() => window.location.href = `/ar-visualizer/${render.id}`}
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      View
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Before/After Preview */}
-                {render.render_status === "completed" && render.after_image_url && (
-                  <div className="mt-3 pt-3 border-t border-neutral-800">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-xs text-neutral-500 mb-1">Before</p>
-                        <div className="h-20 rounded bg-neutral-800 overflow-hidden">
-                          {render.before_image_url && (
-                            <img
-                              src={render.before_image_url}
-                              alt="Before"
-                              className="w-full h-full object-cover"
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-xs text-neutral-500 mb-1">After</p>
-                        <div className="h-20 rounded bg-neutral-800 overflow-hidden">
-                          <img
-                            src={render.after_image_url}
-                            alt="After"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
+    </DashboardShell>
+  );
 }

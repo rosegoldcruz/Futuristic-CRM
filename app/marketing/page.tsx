@@ -1,287 +1,107 @@
-"use client"
+// TODO: reconnect to Postgres/Supabase when backend is available.
+"use client";
 
-import { useEffect, useState } from "react"
-import { TrendingUp, Users, MousePointerClick, Target, BarChart3, Calendar } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { TrendingUp, Users, MousePointerClick, Target } from "lucide-react";
 
-type MarketingMetrics = {
-  total_events: number
-  total_page_views: number
-  total_leads: number
-  total_conversions: number
-  top_sources: Array<{ source: string; count: number }>
-  top_campaigns: Array<{ campaign: string; count: number }>
-  top_mediums: Array<{ medium: string; count: number }>
-  timeline_data: Array<{ date: string; count: number; event_type: string }>
+function KpiCard({ label, value, delta, variant = "cyan" }: { label: string; value: string; delta?: string; variant?: "cyan" | "green" | "yellow" | "magenta" }) {
+  const colors = {
+    cyan: { border: "border-cyber-cyan/30", text: "text-cyber-cyan", glow: "rgba(0,240,255,0.5)" },
+    green: { border: "border-cyber-green/30", text: "text-cyber-green", glow: "rgba(0,255,102,0.5)" },
+    yellow: { border: "border-cyber-yellow/30", text: "text-cyber-yellow", glow: "rgba(255,230,0,0.5)" },
+    magenta: { border: "border-cyber-magenta/30", text: "text-cyber-magenta", glow: "rgba(255,0,255,0.5)" },
+  };
+  const c = colors[variant];
+  return (
+    <div className={`cyber-card-tw ${c.border} shadow-cyberInset`}>
+      <p className="font-display text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">// {label}</p>
+      <p className={`mt-2 text-2xl font-bold font-display ${c.text}`} style={{ textShadow: `0 0 15px ${c.glow}` }}>{value}</p>
+      {delta && <p className="mt-1 text-xs text-cyber-green font-mono">{delta}</p>}
+    </div>
+  );
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"
+function Panel({ title, children, variant = "cyan" }: { title: string; children: React.ReactNode; variant?: "cyan" | "green" | "yellow" | "magenta" }) {
+  const colors = { cyan: "border-l-cyber-cyan", green: "border-l-cyber-green", yellow: "border-l-cyber-yellow", magenta: "border-l-cyber-magenta" };
+  return (
+    <section className={`cyber-card-tw border-l-4 ${colors[variant]} shadow-cyberInset`}>
+      <h2 className="mb-4 font-display text-sm font-bold uppercase tracking-[0.15em] text-cyber-cyan" style={{ textShadow: "0 0 8px rgba(0,240,255,0.4)" }}>
+        // {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+const TOP_SOURCES = [
+  { source: "Meta Ads", leads: 18, conversion: "24%" },
+  { source: "Google", leads: 9, conversion: "31%" },
+  { source: "TikTok", leads: 6, conversion: "18%" },
+  { source: "Referral", leads: 5, conversion: "60%" },
+  { source: "Instagram", leads: 4, conversion: "20%" },
+];
+
+const CAMPAIGNS = [
+  { name: "Kitchen Reface — AZ Spring", status: "active", spend: "$1,200", leads: 14, cpl: "$86" },
+  { name: "Cabinet Replacement — Mesa", status: "active", spend: "$800", leads: 8, cpl: "$100" },
+  { name: "Closet Build — Scottsdale", status: "active", spend: "$600", leads: 6, cpl: "$100" },
+  { name: "Full Remodel — Phoenix Q1", status: "paused", spend: "$2,400", leads: 22, cpl: "$109" },
+];
 
 export default function MarketingPage() {
-  const [metrics, setMetrics] = useState<MarketingMetrics | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [dateRange, setDateRange] = useState<string>("30")
-
-  async function loadMetrics() {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const params = new URLSearchParams()
-      if (dateRange !== "all") {
-        const endDate = new Date()
-        const startDate = new Date()
-        startDate.setDate(startDate.getDate() - parseInt(dateRange))
-        params.set("start_date", startDate.toISOString())
-        params.set("end_date", endDate.toISOString())
-      }
-
-      const res = await fetch(`${API_BASE}/marketing/metrics?${params.toString()}`, {
-        cache: "no-store",
-      })
-      if (!res.ok) throw new Error(`Failed to load metrics (${res.status})`)
-      const data: MarketingMetrics = await res.json()
-      setMetrics(data)
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to load metrics"
-      setError(message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadMetrics()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange])
-
-  function calculateConversionRate(): string {
-    if (!metrics || metrics.total_page_views === 0) return "0"
-    return ((metrics.total_leads / metrics.total_page_views) * 100).toFixed(2)
-  }
-
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {/* Header */}
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">Marketing Analytics</h1>
-          <p className="text-sm text-neutral-400">Track lead sources, UTM parameters, and campaign performance</p>
+    <DashboardShell>
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <h1 className="font-display text-3xl font-bold uppercase tracking-wider text-cyber-cyan" style={{ textShadow: "0 0 20px rgba(0,240,255,0.5)" }}>
+            Marketing
+          </h1>
+          <p className="text-sm text-textSecondary font-mono">// Campaign performance, lead sources, and channel analytics</p>
         </div>
-        <select
-          value={dateRange}
-          onChange={(e) => setDateRange(e.target.value)}
-          className="rounded-md bg-neutral-900 border border-neutral-700 px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:ring-2 focus:ring-amber-500/60"
-        >
-          <option value="7">Last 7 days</option>
-          <option value="30">Last 30 days</option>
-          <option value="90">Last 90 days</option>
-          <option value="all">All time</option>
-        </select>
-      </header>
 
-      {error && (
-        <div className="rounded-md border border-red-500/50 bg-red-950/40 px-3 py-2 text-sm text-red-200">
-          {error}
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard label="Total Leads (30d)" value="42" delta="+12 vs last month" variant="cyan" />
+          <KpiCard label="Qualified Rate" value="64%" delta="+4% vs last month" variant="green" />
+          <KpiCard label="Avg CPL" value="$97" delta="−$8 vs last month" variant="yellow" />
+          <KpiCard label="Conversion Rate" value="28%" delta="+3% vs last month" variant="magenta" />
         </div>
-      )}
 
-      {loading && (
-        <div className="text-center py-12 text-neutral-400">Loading metrics...</div>
-      )}
-
-      {metrics && (
-        <>
-          {/* Key Metrics */}
-          <div className="grid gap-4 md:grid-cols-4">
-            <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-              <div className="flex items-center gap-3">
-                <MousePointerClick className="h-8 w-8 text-blue-400" />
-                <div>
-                  <p className="text-2xl font-bold text-white">{metrics.total_events.toLocaleString()}</p>
-                  <p className="text-xs text-neutral-400">Total Events</p>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Panel title="Top Lead Sources" variant="cyan">
+            <div className="space-y-2">
+              {TOP_SOURCES.map((s) => (
+                <div key={s.source} className="flex items-center justify-between border-b border-borderSubtle py-2 last:border-0">
+                  <span className="text-xs text-textSecondary">{s.source}</span>
+                  <div className="flex gap-6 text-xs font-mono">
+                    <span className="text-cyber-cyan font-bold">{s.leads} leads</span>
+                    <span className="text-cyber-green">{s.conversion} conv.</span>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
+          </Panel>
 
-            <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-              <div className="flex items-center gap-3">
-                <BarChart3 className="h-8 w-8 text-purple-400" />
-                <div>
-                  <p className="text-2xl font-bold text-white">{metrics.total_page_views.toLocaleString()}</p>
-                  <p className="text-xs text-neutral-400">Page Views</p>
+          <Panel title="Active Campaigns" variant="yellow">
+            <div className="space-y-3">
+              {CAMPAIGNS.map((c) => (
+                <div key={c.name} className="border-b border-borderSubtle pb-3 last:border-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-textPrimary">{c.name}</span>
+                    <span className={`text-[10px] font-bold uppercase border px-1.5 py-0.5 ${c.status === "active" ? "text-cyber-green border-cyber-green/50 bg-cyber-green/10" : "text-textMuted border-textMuted/50 bg-textMuted/10"}`}>
+                      {c.status}
+                    </span>
+                  </div>
+                  <div className="flex gap-4 text-[10px] font-mono text-textMuted">
+                    <span>Spend: <span className="text-cyber-yellow">{c.spend}</span></span>
+                    <span>Leads: <span className="text-cyber-cyan">{c.leads}</span></span>
+                    <span>CPL: <span className="text-cyber-magenta">{c.cpl}</span></span>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-
-            <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-              <div className="flex items-center gap-3">
-                <Users className="h-8 w-8 text-emerald-400" />
-                <div>
-                  <p className="text-2xl font-bold text-white">{metrics.total_leads.toLocaleString()}</p>
-                  <p className="text-xs text-neutral-400">Leads Created</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-              <div className="flex items-center gap-3">
-                <Target className="h-8 w-8 text-amber-400" />
-                <div>
-                  <p className="text-2xl font-bold text-white">{calculateConversionRate()}%</p>
-                  <p className="text-xs text-neutral-400">Conversion Rate</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Charts Row */}
-          <div className="grid gap-4 md:grid-cols-3">
-            {/* Top Sources */}
-            <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-6">
-              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-amber-400" />
-                Top Sources
-              </h2>
-              {metrics.top_sources.length === 0 ? (
-                <p className="text-sm text-neutral-500 text-center py-8">No data available</p>
-              ) : (
-                <div className="space-y-3">
-                  {metrics.top_sources.slice(0, 5).map((item, idx) => {
-                    const maxCount = metrics.top_sources[0].count
-                    const percentage = (item.count / maxCount) * 100
-                    return (
-                      <div key={idx}>
-                        <div className="flex items-center justify-between mb-1 text-sm">
-                          <span className="text-neutral-300 truncate">{item.source || "Direct"}</span>
-                          <span className="text-neutral-400 ml-2">{item.count}</span>
-                        </div>
-                        <div className="h-2 bg-neutral-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-amber-500 to-amber-600"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Top Campaigns */}
-            <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-6">
-              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Target className="w-5 h-5 text-purple-400" />
-                Top Campaigns
-              </h2>
-              {metrics.top_campaigns.length === 0 ? (
-                <p className="text-sm text-neutral-500 text-center py-8">No campaigns tracked</p>
-              ) : (
-                <div className="space-y-3">
-                  {metrics.top_campaigns.slice(0, 5).map((item, idx) => {
-                    const maxCount = metrics.top_campaigns[0].count
-                    const percentage = (item.count / maxCount) * 100
-                    return (
-                      <div key={idx}>
-                        <div className="flex items-center justify-between mb-1 text-sm">
-                          <span className="text-neutral-300 truncate">{item.campaign}</span>
-                          <span className="text-neutral-400 ml-2">{item.count}</span>
-                        </div>
-                        <div className="h-2 bg-neutral-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-purple-500 to-purple-600"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Top Mediums */}
-            <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-6">
-              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-blue-400" />
-                Top Mediums
-              </h2>
-              {metrics.top_mediums.length === 0 ? (
-                <p className="text-sm text-neutral-500 text-center py-8">No mediums tracked</p>
-              ) : (
-                <div className="space-y-3">
-                  {metrics.top_mediums.slice(0, 5).map((item, idx) => {
-                    const maxCount = metrics.top_mediums[0].count
-                    const percentage = (item.count / maxCount) * 100
-                    return (
-                      <div key={idx}>
-                        <div className="flex items-center justify-between mb-1 text-sm">
-                          <span className="text-neutral-300 capitalize truncate">
-                            {item.medium.replace(/_/g, " ")}
-                          </span>
-                          <span className="text-neutral-400 ml-2">{item.count}</span>
-                        </div>
-                        <div className="h-2 bg-neutral-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-blue-500 to-blue-600"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Event Timeline */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-6">
-            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-emerald-400" />
-              Recent Activity Timeline
-            </h2>
-            {metrics.timeline_data.length === 0 ? (
-              <p className="text-sm text-neutral-500 text-center py-8">No timeline data</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <div className="inline-flex flex-col space-y-2 min-w-full">
-                  {metrics.timeline_data.slice(0, 10).map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center gap-4 p-3 rounded bg-neutral-900/40 hover:bg-neutral-900/60 transition"
-                    >
-                      <div className="text-sm text-neutral-400 w-24">
-                        {item.date ? new Date(item.date).toLocaleDateString() : "Unknown"}
-                      </div>
-                      <div className="flex-1">
-                        <span className="text-sm text-neutral-300 capitalize">
-                          {item.event_type.replace(/_/g, " ")}
-                        </span>
-                      </div>
-                      <div className="text-sm font-medium text-white">{item.count} events</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={loadMetrics}
-              className="border-neutral-700 text-neutral-200 hover:bg-neutral-800"
-            >
-              Refresh Data
-            </Button>
-          </div>
-        </>
-      )}
-    </div>
-  )
+          </Panel>
+        </div>
+      </div>
+    </DashboardShell>
+  );
 }

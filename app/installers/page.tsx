@@ -1,351 +1,121 @@
-"use client"
+// TODO: reconnect to Postgres/Supabase when backend is available.
+"use client";
 
-import { useEffect, useState } from "react"
-import Link from "next/link"
+import { useMemo, useState } from "react";
+import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { mockInstallers } from "@/app/lib/mockData";
+import type { Installer } from "@/app/lib/mockData";
 
-type InstallerStatus = "pending" | "active" | "inactive" | "suspended" | "terminated"
-type InstallerTier = "apprentice" | "standard" | "pro" | "elite"
+const AVAIL_COLORS: Record<Installer["availability"], string> = {
+  available: "bg-cyber-green/10 border-cyber-green/50 text-cyber-green",
+  busy: "bg-cyber-yellow/10 border-cyber-yellow/50 text-cyber-yellow",
+  unavailable: "bg-cyber-red/10 border-cyber-red/50 text-cyber-red",
+};
 
-type Installer = {
-  id: number
-  tenant_id?: number | null
-  first_name: string
-  last_name: string
-  full_name?: string | null
-  email?: string | null
-  phone: string
-  phone_secondary?: string | null
-  company_name?: string | null
-  status: InstallerStatus
-  tier: InstallerTier
-  skills?: string[] | null
-  service_area_zips?: string[] | null
-  service_radius_miles?: number | null
-  max_jobs_per_day?: number | null
-  max_jobs_per_week?: number | null
-  base_hourly_rate?: number | null
-  base_job_rate?: number | null
-  has_insurance: boolean
-  has_vehicle: boolean
-  has_tools: boolean
-  jobs_completed: number
-  jobs_cancelled: number
-  rating_average?: number | null
-  rating_count: number
-  total_earnings?: number | null
-  pending_payout?: number | null
-  internal_notes?: string | null
-  created_at?: string | null
-  updated_at?: string | null
+function Badge({ label, colorClass }: { label: string; colorClass: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${colorClass}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
+      {label}
+    </span>
+  );
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"
-
-const STATUS_COLORS: Record<InstallerStatus, string> = {
-  pending: "bg-yellow-500/20 text-yellow-300 border-yellow-500/50",
-  active: "bg-emerald-500/20 text-emerald-300 border-emerald-500/50",
-  inactive: "bg-neutral-500/20 text-neutral-300 border-neutral-500/50",
-  suspended: "bg-red-500/20 text-red-300 border-red-500/50",
-  terminated: "bg-red-900/20 text-red-400 border-red-900/50",
-}
-
-const TIER_COLORS: Record<InstallerTier, string> = {
-  apprentice: "bg-slate-600/30 text-slate-300",
-  standard: "bg-blue-600/30 text-blue-300",
-  pro: "bg-purple-600/30 text-purple-300",
-  elite: "bg-amber-600/30 text-amber-300",
+function KpiCard({ label, value, variant = "cyan" }: { label: string; value: string | number; variant?: "cyan" | "green" | "yellow" | "magenta" }) {
+  const colors = {
+    cyan: { border: "border-cyber-cyan/30", text: "text-cyber-cyan", glow: "rgba(0,240,255,0.5)" },
+    green: { border: "border-cyber-green/30", text: "text-cyber-green", glow: "rgba(0,255,102,0.5)" },
+    yellow: { border: "border-cyber-yellow/30", text: "text-cyber-yellow", glow: "rgba(255,230,0,0.5)" },
+    magenta: { border: "border-cyber-magenta/30", text: "text-cyber-magenta", glow: "rgba(255,0,255,0.5)" },
+  };
+  const c = colors[variant];
+  return (
+    <div className={`cyber-card-tw ${c.border} shadow-cyberInset`}>
+      <p className="font-display text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">// {label}</p>
+      <p className={`mt-2 text-2xl font-bold font-display ${c.text}`} style={{ textShadow: `0 0 15px ${c.glow}` }}>{value}</p>
+    </div>
+  );
 }
 
 export default function InstallersPage() {
-  const [installers, setInstallers] = useState<Installer[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState("");
+  const installers = mockInstallers;
 
-  const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState<InstallerStatus | "">("")
-  const [tierFilter, setTierFilter] = useState<InstallerTier | "">("")
+  const filtered = useMemo(() => {
+    if (!search) return installers;
+    const s = search.toLowerCase();
+    return installers.filter((i) =>
+      i.name.toLowerCase().includes(s) || i.coverageArea.toLowerCase().includes(s)
+    );
+  }, [installers, search]);
 
-  async function fetchInstallers() {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const params = new URLSearchParams()
-      if (search.trim()) params.set("search", search.trim())
-      if (statusFilter) params.set("status", statusFilter)
-      if (tierFilter) params.set("tier", tierFilter)
-
-      const res = await fetch(`${API_BASE}/installers/?${params.toString()}`, {
-        cache: "no-store",
-      })
-
-      if (!res.ok) throw new Error(`Failed to load installers (${res.status})`)
-
-      const data: Installer[] = await res.json()
-      setInstallers(data)
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to load installers"
-      setError(message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchInstallers()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  function formatRating(rating: number | null | undefined): string {
-    if (rating === null || rating === undefined) return "—"
-    return rating.toFixed(1)
-  }
+  const availableCount = installers.filter((i) => i.availability === "available").length;
+  const busyCount = installers.filter((i) => i.availability === "busy").length;
+  const totalActiveJobs = installers.reduce((sum, i) => sum + i.activeJobs, 0);
+  const avgSla = Math.round(installers.reduce((sum, i) => sum + i.slaScore, 0) / installers.length);
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">
-            Installer Network
+    <DashboardShell>
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <h1 className="font-display text-3xl font-bold uppercase tracking-wider text-cyber-cyan" style={{ textShadow: "0 0 20px rgba(0,240,255,0.5)" }}>
+            Installers
           </h1>
-          <p className="text-sm text-neutral-400">
-            Manage your verified labor pool — cabinet refacing, installation, and more.
-          </p>
+          <p className="text-sm text-textSecondary font-mono">// Installer partner network, availability, SLA, and active jobs</p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard label="Total Partners" value={installers.length} variant="cyan" />
+          <KpiCard label="Available Now" value={availableCount} variant="green" />
+          <KpiCard label="Currently Busy" value={busyCount} variant="yellow" />
+          <KpiCard label="Avg SLA Score" value={`${avgSla}%`} variant="magenta" />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
           <input
+            type="text"
+            placeholder="Search name or coverage area..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search installers..."
-            className="rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="w-64 border border-borderSubtle bg-surface px-3 py-2 text-xs text-textPrimary placeholder-textMuted focus:border-cyber-cyan/60 focus:outline-none font-mono"
           />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as InstallerStatus | "")}
-            className="rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-          >
-            <option value="">All statuses</option>
-            <option value="pending">Pending</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="suspended">Suspended</option>
-            <option value="terminated">Terminated</option>
-          </select>
-          <select
-            value={tierFilter}
-            onChange={(e) => setTierFilter(e.target.value as InstallerTier | "")}
-            className="rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-          >
-            <option value="">All tiers</option>
-            <option value="apprentice">Apprentice</option>
-            <option value="standard">Standard</option>
-            <option value="pro">Pro</option>
-            <option value="elite">Elite</option>
-          </select>
-          <button
-            onClick={fetchInstallers}
-            className="rounded-md bg-neutral-800 px-3 py-2 text-sm text-neutral-200 hover:bg-neutral-700"
-          >
-            Refresh
-          </button>
+          <span className="text-xs text-textMuted font-mono">{filtered.length} / {installers.length} installers</span>
         </div>
-      </header>
 
-      {error && (
-        <div className="rounded-md border border-red-800 bg-red-950 px-4 py-2 text-sm text-red-200">
-          {error}
-        </div>
-      )}
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-          <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Total Installers</p>
-          <p className="mt-1 text-2xl font-semibold text-white">{installers.length}</p>
-        </div>
-        <div className="rounded-lg border border-emerald-900/50 bg-emerald-950/30 p-4">
-          <p className="text-xs font-medium uppercase tracking-wider text-emerald-400">Active</p>
-          <p className="mt-1 text-2xl font-semibold text-emerald-300">
-            {installers.filter((i) => i.status === "active").length}
-          </p>
-        </div>
-        <div className="rounded-lg border border-yellow-900/50 bg-yellow-950/30 p-4">
-          <p className="text-xs font-medium uppercase tracking-wider text-yellow-400">Pending</p>
-          <p className="mt-1 text-2xl font-semibold text-yellow-300">
-            {installers.filter((i) => i.status === "pending").length}
-          </p>
-        </div>
-        <div className="rounded-lg border border-amber-900/50 bg-amber-950/30 p-4">
-          <p className="text-xs font-medium uppercase tracking-wider text-amber-400">Avg Rating</p>
-          <p className="mt-1 text-2xl font-semibold text-amber-300">
-            {installers.length > 0
-              ? (
-                  installers
-                    .filter((i) => i.rating_average !== null && i.rating_average !== undefined)
-                    .reduce((sum, i) => sum + (i.rating_average || 0), 0) /
-                  Math.max(1, installers.filter((i) => i.rating_average !== null).length)
-                ).toFixed(1)
-              : "—"}
-          </p>
-        </div>
-      </div>
-
-      {/* Installers Table */}
-      <section className="overflow-x-auto rounded-lg border border-neutral-800 bg-neutral-950">
-        <table className="min-w-full text-left text-sm text-neutral-200">
-          <thead className="bg-neutral-900 text-xs uppercase text-neutral-400">
-            <tr>
-              <th className="px-4 py-3">Installer</th>
-              <th className="px-4 py-3">Contact</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Tier</th>
-              <th className="px-4 py-3">Skills</th>
-              <th className="px-4 py-3">Service Areas</th>
-              <th className="px-4 py-3">Jobs</th>
-              <th className="px-4 py-3">Rating</th>
-              <th className="px-4 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={9} className="px-4 py-6 text-center text-neutral-400">
-                  Loading installers…
-                </td>
+        <section className="cyber-card-tw border-l-4 border-l-cyber-cyan shadow-cyberInset overflow-x-auto p-0">
+          <table className="min-w-full text-xs">
+            <thead>
+              <tr className="border-b border-borderSubtle bg-bgDark">
+                {["ID", "Company", "Coverage Area", "Availability", "Active Jobs", "SLA Score", "Rating"].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left font-display text-[10px] uppercase tracking-[0.15em] text-cyber-cyan/70">{h}</th>
+                ))}
               </tr>
-            ) : installers.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="px-4 py-6 text-center text-neutral-500">
-                  No installers found.
-                </td>
-              </tr>
-            ) : (
-              installers.map((installer) => (
-                <tr
-                  key={installer.id}
-                  className="border-t border-neutral-800 hover:bg-neutral-900/60"
-                >
+            </thead>
+            <tbody>
+              {filtered.map((ins) => (
+                <tr key={ins.id} className="border-b border-borderSubtle hover:bg-surface/60 transition-colors">
+                  <td className="px-4 py-3 font-mono text-textMuted">{ins.id}</td>
+                  <td className="px-4 py-3 font-medium text-textPrimary">{ins.name}</td>
+                  <td className="px-4 py-3 text-textSecondary">{ins.coverageArea}</td>
+                  <td className="px-4 py-3"><Badge label={ins.availability} colorClass={AVAIL_COLORS[ins.availability]} /></td>
+                  <td className="px-4 py-3 font-mono text-cyber-cyan font-bold">{ins.activeJobs}</td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-emerald-400 text-sm font-semibold text-black">
-                        {installer.first_name?.[0]}{installer.last_name?.[0]}
+                    <div className="flex items-center gap-2">
+                      <div className="h-1.5 w-16 rounded-full bg-bgLighter overflow-hidden">
+                        <div className="h-full rounded-full bg-cyber-green" style={{ width: `${ins.slaScore}%`, opacity: 0.8 }} />
                       </div>
-                      <div>
-                        <p className="font-medium text-white">
-                          {installer.full_name || `${installer.first_name} ${installer.last_name}`}
-                        </p>
-                        {installer.company_name && (
-                          <p className="text-xs text-neutral-500">{installer.company_name}</p>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="text-sm">{installer.phone}</p>
-                    {installer.email && (
-                      <p className="text-xs text-neutral-500">{installer.email}</p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-block rounded-full border px-2 py-0.5 text-xs capitalize ${
-                        STATUS_COLORS[installer.status] || "bg-neutral-800"
-                      }`}
-                    >
-                      {installer.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-block rounded px-2 py-0.5 text-xs capitalize ${
-                        TIER_COLORS[installer.tier] || "bg-neutral-800"
-                      }`}
-                    >
-                      {installer.tier}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {installer.skills && installer.skills.length > 0 ? (
-                        installer.skills.slice(0, 2).map((skill: string) => (
-                          <span
-                            key={skill}
-                            className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300"
-                          >
-                            {skill.replace(/_/g, " ")}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-xs text-neutral-500">—</span>
-                      )}
-                      {installer.skills && installer.skills.length > 2 && (
-                        <span className="text-[10px] text-neutral-500">
-                          +{installer.skills.length - 2}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {installer.service_area_zips && installer.service_area_zips.length > 0 ? (
-                        <>
-                          {installer.service_area_zips.slice(0, 2).map((zip) => (
-                            <span
-                              key={zip}
-                              className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300"
-                            >
-                              {zip}
-                            </span>
-                          ))}
-                          {installer.service_area_zips.length > 2 && (
-                            <span className="text-[10px] text-neutral-500">
-                              +{installer.service_area_zips.length - 2}
-                            </span>
-                          )}
-                        </>
-                      ) : installer.service_radius_miles ? (
-                        <span className="text-xs text-neutral-400">
-                          {installer.service_radius_miles} mi radius
-                        </span>
-                      ) : (
-                        <span className="text-xs text-neutral-500">—</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="text-sm">
-                      <span className="text-emerald-400">{installer.jobs_completed}</span>
-                      <span className="text-neutral-600"> / </span>
-                      <span className="text-red-400">{installer.jobs_cancelled}</span>
-                    </div>
-                    <p className="text-[10px] text-neutral-500">completed / cancelled</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <span className="text-amber-400">★</span>
-                      <span className="text-sm font-medium">
-                        {formatRating(installer.rating_average)}
-                      </span>
-                      <span className="text-xs text-neutral-500">
-                        ({installer.rating_count})
+                      <span className={`font-mono font-bold ${ins.slaScore >= 95 ? "text-cyber-green" : ins.slaScore >= 90 ? "text-cyber-yellow" : "text-cyber-red"}`}>
+                        {ins.slaScore}%
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/installers/${installer.id}`}
-                      className="rounded-md bg-neutral-800 px-3 py-1.5 text-xs text-neutral-200 hover:bg-neutral-700"
-                    >
-                      View
-                    </Link>
-                  </td>
+                  <td className="px-4 py-3 font-mono text-cyber-yellow font-bold">★ {ins.rating.toFixed(1)}</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </section>
-    </div>
-  )
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </div>
+    </DashboardShell>
+  );
 }

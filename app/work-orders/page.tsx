@@ -1,199 +1,115 @@
-"use client"
+// TODO: reconnect to Postgres/Supabase when backend is available.
+"use client";
 
-import { useEffect, useState } from "react"
-import Link from "next/link"
-import { Eye, Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useMemo, useState } from "react";
+import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { mockWorkOrders } from "@/app/lib/mockData";
+import type { WorkOrder } from "@/app/lib/mockData";
 
-type WorkOrderStatus = "created" | "sent" | "accepted" | "in_progress" | "completed" | "cancelled"
+const STATUS_COLORS: Record<WorkOrder["status"], string> = {
+  scheduled: "bg-cyber-cyan/10 border-cyber-cyan/50 text-cyber-cyan",
+  "in-progress": "bg-cyber-green/10 border-cyber-green/50 text-cyber-green",
+  completed: "bg-cyber-green/10 border-cyber-green/50 text-cyber-green",
+  cancelled: "bg-textMuted/20 border-textMuted/50 text-textMuted",
+  pending: "bg-cyber-yellow/10 border-cyber-yellow/50 text-cyber-yellow",
+};
 
-interface WorkOrder {
-  id: number
-  tenant_id?: number | null
-  job_id: number
-  installer_id?: number | null
-  customer_name?: string | null
-  installer_name?: string | null
-  job_status?: string | null
-  status: WorkOrderStatus | string | null
-  scheduled_date?: string | null
-  scheduled_time_start?: string | null
-  scheduled_time_end?: string | null
-  created_at?: string | null
+function Badge({ label, colorClass }: { label: string; colorClass: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${colorClass}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
+      {label.replace("-", " ")}
+    </span>
+  );
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"
-
-const STATUS_LABELS: Record<WorkOrderStatus, string> = {
-  created: "Created",
-  sent: "Sent",
-  accepted: "Accepted",
-  in_progress: "In Progress",
-  completed: "Completed",
-  cancelled: "Cancelled",
-}
-
-const STATUS_COLORS: Record<WorkOrderStatus, string> = {
-  created: "bg-slate-500/20 text-slate-300 border-slate-500/50",
-  sent: "bg-blue-500/20 text-blue-300 border-blue-500/50",
-  accepted: "bg-yellow-500/20 text-yellow-300 border-yellow-500/50",
-  in_progress: "bg-amber-500/20 text-amber-300 border-amber-500/50",
-  completed: "bg-emerald-500/20 text-emerald-300 border-emerald-500/50",
-  cancelled: "bg-red-600/20 text-red-400 border-red-600/50",
+function KpiCard({ label, value, variant = "cyan" }: { label: string; value: string | number; variant?: "cyan" | "green" | "yellow" | "red" }) {
+  const colors = {
+    cyan: { border: "border-cyber-cyan/30", text: "text-cyber-cyan", glow: "rgba(0,240,255,0.5)" },
+    green: { border: "border-cyber-green/30", text: "text-cyber-green", glow: "rgba(0,255,102,0.5)" },
+    yellow: { border: "border-cyber-yellow/30", text: "text-cyber-yellow", glow: "rgba(255,230,0,0.5)" },
+    red: { border: "border-cyber-red/30", text: "text-cyber-red", glow: "rgba(255,0,68,0.5)" },
+  };
+  const c = colors[variant];
+  return (
+    <div className={`cyber-card-tw ${c.border} shadow-cyberInset`}>
+      <p className="font-display text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">// {label}</p>
+      <p className={`mt-2 text-2xl font-bold font-display ${c.text}`} style={{ textShadow: `0 0 15px ${c.glow}` }}>{value}</p>
+    </div>
+  );
 }
 
 export default function WorkOrdersPage() {
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [statusFilter, setStatusFilter] = useState<string>("")
+  const [search, setSearch] = useState("");
+  const workOrders = mockWorkOrders;
 
-  async function loadWorkOrders() {
-    try {
-      setLoading(true)
-      setError(null)
+  const filtered = useMemo(() => {
+    if (!search) return workOrders;
+    const s = search.toLowerCase();
+    return workOrders.filter((w) =>
+      w.id.toLowerCase().includes(s) ||
+      w.jobId.toLowerCase().includes(s) ||
+      w.installer.toLowerCase().includes(s)
+    );
+  }, [workOrders, search]);
 
-      const params = new URLSearchParams()
-      if (statusFilter) params.set("status", statusFilter)
-      params.set("limit", "100")
-
-      const res = await fetch(`${API_BASE}/work-orders/?${params.toString()}`, { cache: "no-store" })
-      if (!res.ok) throw new Error(`Failed to load work orders (${res.status})`)
-      const data: WorkOrder[] = await res.json()
-      setWorkOrders(data)
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to load work orders"
-      setError(message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadWorkOrders()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter])
+  const scheduledCount = workOrders.filter((w) => w.status === "scheduled").length;
+  const inProgressCount = workOrders.filter((w) => w.status === "in-progress").length;
+  const pendingCount = workOrders.filter((w) => w.status === "pending").length;
+  const completedCount = workOrders.filter((w) => w.status === "completed").length;
 
   return (
-    <div className="flex flex-col gap-6 p-6 h-full">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">Work Orders</h1>
-          <p className="text-sm text-neutral-400">Execution pipeline for approved jobs</p>
+    <DashboardShell>
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <h1 className="font-display text-3xl font-bold uppercase tracking-wider text-cyber-cyan" style={{ textShadow: "0 0 20px rgba(0,240,255,0.5)" }}>
+            Work Orders
+          </h1>
+          <p className="text-sm text-textSecondary font-mono">// Installer work order queue and scheduled jobs</p>
         </div>
-      </div>
 
-      {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-3 md:items-center">
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="w-full md:w-48 rounded-md bg-neutral-900 border border-neutral-700 px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:ring-2 focus:ring-amber-500/60"
-        >
-          <option value="">All statuses</option>
-          <option value="created">Created</option>
-          <option value="sent">Sent</option>
-          <option value="accepted">Accepted</option>
-          <option value="in_progress">In Progress</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={loadWorkOrders}
-          disabled={loading}
-          className="border-neutral-700 text-neutral-200 hover:bg-neutral-800 md:ml-auto"
-        >
-          Refresh
-        </Button>
-      </div>
-
-      {error && (
-        <div className="rounded-md border border-red-500/50 bg-red-950/40 px-3 py-2 text-sm text-red-200">
-          {error}
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard label="Scheduled" value={scheduledCount} variant="cyan" />
+          <KpiCard label="In Progress" value={inProgressCount} variant="green" />
+          <KpiCard label="Pending" value={pendingCount} variant="yellow" />
+          <KpiCard label="Completed" value={completedCount} variant="green" />
         </div>
-      )}
 
-      {/* Table */}
-      <div className="flex-1 overflow-auto rounded-xl border border-neutral-800 bg-neutral-950/70">
-        <table className="min-w-full text-sm">
-          <thead className="bg-neutral-900/80 border-b border-neutral-800 sticky top-0 z-10">
-            <tr>
-              <th className="px-4 py-3 text-left font-medium text-neutral-400">WO#</th>
-              <th className="px-4 py-3 text-left font-medium text-neutral-400">Job#</th>
-              <th className="px-4 py-3 text-left font-medium text-neutral-400">Customer</th>
-              <th className="px-4 py-3 text-left font-medium text-neutral-400">Installer</th>
-              <th className="px-4 py-3 text-left font-medium text-neutral-400">Status</th>
-              <th className="px-4 py-3 text-left font-medium text-neutral-400">Scheduled</th>
-              <th className="px-4 py-3 text-left font-medium text-neutral-400">Created</th>
-              <th className="px-4 py-3 text-right font-medium text-neutral-400">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {workOrders.length === 0 && !loading && (
-              <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-neutral-500 text-sm">
-                  No work orders yet. Generate one from an approved job.
-                </td>
-              </tr>
-            )}
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            type="text"
+            placeholder="Search WO ID, job ID, installer..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-64 border border-borderSubtle bg-surface px-3 py-2 text-xs text-textPrimary placeholder-textMuted focus:border-cyber-cyan/60 focus:outline-none font-mono"
+          />
+          <span className="text-xs text-textMuted font-mono">{filtered.length} / {workOrders.length} orders</span>
+        </div>
 
-            {workOrders.map((wo) => (
-              <tr
-                key={wo.id}
-                className="border-t border-neutral-900 hover:bg-neutral-900/60 transition-colors"
-              >
-                <td className="px-4 py-3 text-neutral-300 font-medium">#{wo.id}</td>
-                <td className="px-4 py-3">
-                  <Link href={`/jobs/${wo.job_id}`} className="text-amber-400 hover:underline">
-                    #{wo.job_id}
-                  </Link>
-                </td>
-                <td className="px-4 py-3 text-neutral-100">{wo.customer_name || "—"}</td>
-                <td className="px-4 py-3 text-neutral-300">{wo.installer_name || "Not assigned"}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-                      STATUS_COLORS[(wo.status as WorkOrderStatus) || "created"]
-                    }`}
-                  >
-                    {STATUS_LABELS[(wo.status as WorkOrderStatus) || "created"]}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-neutral-300">
-                  {wo.scheduled_date
-                    ? new Date(wo.scheduled_date).toLocaleDateString()
-                    : "Not scheduled"}
-                </td>
-                <td className="px-4 py-3 text-neutral-300">
-                  {wo.created_at ? new Date(wo.created_at).toLocaleDateString() : "—"}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <Link href={`/work-orders/${wo.id}`}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-amber-400 hover:text-amber-200 hover:bg-amber-950/60"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                  </Link>
-                </td>
+        <section className="cyber-card-tw border-l-4 border-l-cyber-cyan shadow-cyberInset overflow-x-auto p-0">
+          <table className="min-w-full text-xs">
+            <thead>
+              <tr className="border-b border-borderSubtle bg-bgDark">
+                {["WO ID", "Job ID", "Installer", "Status", "Scheduled Date", "Notes"].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left font-display text-[10px] uppercase tracking-[0.15em] text-cyber-cyan/70">{h}</th>
+                ))}
               </tr>
-            ))}
-
-            {loading && (
-              <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-neutral-500 text-sm">
-                  Loading work orders…
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map((wo) => (
+                <tr key={wo.id} className={`border-b border-borderSubtle hover:bg-surface/60 transition-colors ${wo.status === "pending" ? "bg-cyber-yellow/5" : ""}`}>
+                  <td className="px-4 py-3 font-mono text-cyber-cyan font-bold">{wo.id}</td>
+                  <td className="px-4 py-3 font-mono text-textSecondary">{wo.jobId}</td>
+                  <td className="px-4 py-3 font-medium text-textPrimary">{wo.installer}</td>
+                  <td className="px-4 py-3"><Badge label={wo.status} colorClass={STATUS_COLORS[wo.status]} /></td>
+                  <td className="px-4 py-3 text-textMuted font-mono">{wo.scheduledDate}</td>
+                  <td className="px-4 py-3 text-textSecondary max-w-[260px]">{wo.notes}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
       </div>
-    </div>
-  )
+    </DashboardShell>
+  );
 }
