@@ -23,12 +23,13 @@ export function DetailModal({ title, subtitle, onClose, children }: DetailModalP
       <div
         role="dialog"
         aria-modal="true"
+        aria-labelledby="detail-modal-title"
         className="cyber-card-tw border-cyber-cyan/30 shadow-cyberMd max-h-[90vh] w-full max-w-3xl overflow-y-auto"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-4 border-b border-borderSubtle pb-3">
           <div>
-            <h2 className="font-display text-xl font-bold uppercase tracking-wider text-cyber-cyan">{title}</h2>
+            <h2 id="detail-modal-title" className="font-display text-xl font-bold uppercase tracking-wider text-cyber-cyan">{title}</h2>
             {subtitle ? <p className="mt-1 text-xs font-mono text-textMuted">{subtitle}</p> : null}
           </div>
           <button
