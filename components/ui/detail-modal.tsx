@@ -14,13 +14,15 @@ export function DetailModal({ title, subtitle, onClose, children }: DetailModalP
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-bgDarkest/80 p-4" onClick={onClose}>
       <div
+        role="dialog"
+        aria-modal="true"
         className="cyber-card-tw border-cyber-cyan/30 shadow-cyberMd max-h-[90vh] w-full max-w-3xl overflow-y-auto"
         onClick={(event) => event.stopPropagation()}
       >
@@ -32,6 +34,7 @@ export function DetailModal({ title, subtitle, onClose, children }: DetailModalP
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close dialog"
             className="border border-borderSubtle px-2 py-1 text-[10px] font-display font-bold uppercase tracking-wider text-textSecondary hover:border-cyber-cyan hover:text-cyber-cyan"
           >
             Close
