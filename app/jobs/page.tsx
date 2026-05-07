@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { mockJobs } from "@/app/lib/mockData";
 import type { Job } from "@/app/lib/mockData";
+import { DetailField, DetailModal } from "@/components/ui/detail-modal";
 
 const MATERIAL_COLORS: Record<Job["materialStatus"], string> = {
   ordered: "bg-cyber-cyan/10 border-cyber-cyan/50 text-cyber-cyan",
@@ -67,6 +68,7 @@ function KpiCard({ label, value, variant = "cyan" }: { label: string; value: str
 export default function JobsPage() {
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("");
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
   const jobs = mockJobs;
 
@@ -156,11 +158,12 @@ export default function JobsPage() {
                 filtered.map((job) => (
                   <tr
                     key={job.id}
-                    className={`border-b border-borderSubtle hover:bg-surface/60 transition-colors ${
+                    className={`cursor-pointer border-b border-borderSubtle transition-colors hover:bg-surface/60 ${
                       job.stage === "on-hold" || job.paymentStatus === "hold" || job.materialStatus === "missing"
                         ? "bg-cyber-red/5"
                         : ""
                     }`}
+                    onClick={() => setSelectedJob(job)}
                   >
                     <td className="px-4 py-3 font-mono text-cyber-cyan font-bold">{job.id}</td>
                     <td className="px-4 py-3 font-medium text-textPrimary whitespace-nowrap">{job.customerName}</td>
@@ -181,6 +184,30 @@ export default function JobsPage() {
           </table>
         </section>
       </div>
+      {selectedJob ? (
+        <DetailModal
+          title={`Job Card — ${selectedJob.id}`}
+          subtitle={`${selectedJob.customerName} • ${selectedJob.projectType}`}
+          onClose={() => setSelectedJob(null)}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DetailField label="Customer" value={selectedJob.customerName} />
+            <DetailField label="City" value={selectedJob.city} />
+            <DetailField label="Project Type" value={selectedJob.projectType} />
+            <DetailField label="Install Date" value={selectedJob.installDate} />
+            <DetailField label="Installer" value={selectedJob.installer} />
+            <DetailField label="Supplier" value={selectedJob.supplier} />
+            <DetailField label="Material Status" value={selectedJob.materialStatus.replace("-", " ")} />
+            <DetailField label="Payment Status" value={selectedJob.paymentStatus} />
+            <DetailField label="QC Status" value={selectedJob.qcStatus.replace("-", " ")} />
+            <DetailField label="Stage" value={selectedJob.stage.replace("-", " ")} />
+          </div>
+          <div className="mt-3 border border-borderSubtle/80 bg-surface/40 px-3 py-2">
+            <p className="text-[10px] font-display font-bold uppercase tracking-[0.15em] text-cyber-cyan/70">Next Action</p>
+            <p className="mt-1 text-sm text-textPrimary">{selectedJob.nextAction}</p>
+          </div>
+        </DetailModal>
+      ) : null}
     </DashboardShell>
   );
 }

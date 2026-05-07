@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { mockSuppliers } from "@/app/lib/mockData";
 import type { Supplier } from "@/app/lib/mockData";
+import { DetailField, DetailModal } from "@/components/ui/detail-modal";
 
 const STATUS_COLORS: Record<Supplier["status"], string> = {
   active: "bg-cyber-green/10 border-cyber-green/50 text-cyber-green",
@@ -39,6 +40,7 @@ function KpiCard({ label, value, variant = "cyan" }: { label: string; value: str
 
 export default function SuppliersPage() {
   const [search, setSearch] = useState("");
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const suppliers = mockSuppliers;
 
   const filtered = useMemo(() => {
@@ -93,7 +95,11 @@ export default function SuppliersPage() {
             </thead>
             <tbody>
               {filtered.map((sup) => (
-                <tr key={sup.id} className="border-b border-borderSubtle hover:bg-surface/60 transition-colors">
+                <tr
+                  key={sup.id}
+                  className="cursor-pointer border-b border-borderSubtle transition-colors hover:bg-surface/60"
+                  onClick={() => setSelectedSupplier(sup)}
+                >
                   <td className="px-4 py-3 font-mono text-textMuted">{sup.id}</td>
                   <td className="px-4 py-3 font-medium text-textPrimary">{sup.name}</td>
                   <td className="px-4 py-3 text-textSecondary">{sup.materialCategory}</td>
@@ -115,6 +121,21 @@ export default function SuppliersPage() {
           </table>
         </section>
       </div>
+      {selectedSupplier ? (
+        <DetailModal
+          title={`Supplier Card — ${selectedSupplier.name}`}
+          subtitle={selectedSupplier.id}
+          onClose={() => setSelectedSupplier(null)}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DetailField label="Supplier" value={selectedSupplier.name} />
+            <DetailField label="Material Category" value={selectedSupplier.materialCategory} />
+            <DetailField label="Status" value={selectedSupplier.status} />
+            <DetailField label="Open Orders" value={selectedSupplier.openOrders} />
+            <DetailField label="Fulfillment Rate" value={`${selectedSupplier.fulfillmentRate}%`} />
+          </div>
+        </DetailModal>
+      ) : null}
     </DashboardShell>
   );
 }

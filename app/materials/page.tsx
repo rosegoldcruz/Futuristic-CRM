@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { mockMaterials } from "@/app/lib/mockData";
 import type { Material } from "@/app/lib/mockData";
+import { DetailField, DetailModal } from "@/components/ui/detail-modal";
 
 const STOCK_COLORS: Record<Material["stockStatus"], string> = {
   "in-stock": "bg-cyber-green/10 border-cyber-green/50 text-cyber-green",
@@ -40,6 +41,7 @@ function KpiCard({ label, value, variant = "cyan" }: { label: string; value: str
 
 export default function MaterialsPage() {
   const [search, setSearch] = useState("");
+  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const materials = mockMaterials;
 
   const filtered = useMemo(() => {
@@ -97,7 +99,11 @@ export default function MaterialsPage() {
             </thead>
             <tbody>
               {filtered.map((mat) => (
-                <tr key={mat.sku} className={`border-b border-borderSubtle hover:bg-surface/60 transition-colors ${mat.stockStatus === "out-of-stock" ? "bg-cyber-red/5" : ""}`}>
+                <tr
+                  key={mat.sku}
+                  className={`cursor-pointer border-b border-borderSubtle transition-colors hover:bg-surface/60 ${mat.stockStatus === "out-of-stock" ? "bg-cyber-red/5" : ""}`}
+                  onClick={() => setSelectedMaterial(mat)}
+                >
                   <td className="px-4 py-3 font-mono text-cyber-cyan">{mat.sku}</td>
                   <td className="px-4 py-3 font-medium text-textPrimary">{mat.name}</td>
                   <td className="px-4 py-3 text-textSecondary">{mat.category}</td>
@@ -110,6 +116,32 @@ export default function MaterialsPage() {
           </table>
         </section>
       </div>
+      {selectedMaterial ? (
+        <DetailModal
+          title={`Material Card — ${selectedMaterial.name}`}
+          subtitle={selectedMaterial.sku}
+          onClose={() => setSelectedMaterial(null)}
+        >
+          <div className="mb-3 border border-borderSubtle/80 bg-surface/40 p-3">
+            <div className="flex h-40 items-center justify-center border border-cyber-cyan/40 bg-gradient-to-br from-cyber-cyan/10 via-surface to-cyber-magenta/10 text-center">
+              <div>
+                <p className="font-display text-sm font-bold uppercase tracking-wider text-cyber-cyan">Image Preview</p>
+                <p className="mt-1 text-xs text-textSecondary">{selectedMaterial.imageLabel}</p>
+                <p className="mt-2 text-xs font-mono text-cyber-yellow">{selectedMaterial.dimensions}</p>
+              </div>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DetailField label="SKU" value={selectedMaterial.sku} />
+            <DetailField label="Name" value={selectedMaterial.name} />
+            <DetailField label="Category" value={selectedMaterial.category} />
+            <DetailField label="Supplier" value={selectedMaterial.supplier} />
+            <DetailField label="Stock Status" value={selectedMaterial.stockStatus.replace("-", " ")} />
+            <DetailField label="Dimensions" value={selectedMaterial.dimensions} />
+            <DetailField label="ETA" value={selectedMaterial.eta} />
+          </div>
+        </DetailModal>
+      ) : null}
     </DashboardShell>
   );
 }
