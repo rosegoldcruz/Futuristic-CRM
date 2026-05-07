@@ -1,423 +1,112 @@
-"use client"
+// TODO: reconnect to Postgres/Supabase when backend is available.
+"use client";
 
-import { useEffect, useState } from "react"
+import { useMemo, useState } from "react";
+import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { mockHomeowners } from "@/app/lib/mockData";
+import type { Homeowner } from "@/app/lib/mockData";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"
+const STATUS_COLORS: Record<Homeowner["status"], string> = {
+  active: "bg-cyber-cyan/10 border-cyber-cyan/50 text-cyber-cyan",
+  completed: "bg-cyber-green/10 border-cyber-green/50 text-cyber-green",
+  prospecting: "bg-cyber-yellow/10 border-cyber-yellow/50 text-cyber-yellow",
+  "on-hold": "bg-cyber-red/10 border-cyber-red/50 text-cyber-red",
+};
 
-import type { Homeowner } from "@/lib/types"
+function Badge({ label, colorClass }: { label: string; colorClass: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${colorClass}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
+      {label}
+    </span>
+  );
+}
+
+function KpiCard({ label, value, variant = "cyan" }: { label: string; value: string | number; variant?: "cyan" | "green" | "yellow" | "magenta" }) {
+  const colors = {
+    cyan: { border: "border-cyber-cyan/30", text: "text-cyber-cyan", glow: "rgba(0,240,255,0.5)" },
+    green: { border: "border-cyber-green/30", text: "text-cyber-green", glow: "rgba(0,255,102,0.5)" },
+    yellow: { border: "border-cyber-yellow/30", text: "text-cyber-yellow", glow: "rgba(255,230,0,0.5)" },
+    magenta: { border: "border-cyber-magenta/30", text: "text-cyber-magenta", glow: "rgba(255,0,255,0.5)" },
+  };
+  const c = colors[variant];
+  return (
+    <div className={`cyber-card-tw ${c.border} shadow-cyberInset`}>
+      <p className="font-display text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">// {label}</p>
+      <p className={`mt-2 text-2xl font-bold font-display ${c.text}`} style={{ textShadow: `0 0 15px ${c.glow}` }}>{value}</p>
+    </div>
+  );
+}
 
 export default function HomeownersPage() {
-  const [homeowners, setHomeowners] = useState<Homeowner[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+  const [search, setSearch] = useState("");
+  const homeowners = mockHomeowners;
 
-  const [search, setSearch] = useState("")
-  const [cityFilter, setCityFilter] = useState("")
-  const [stateFilter, setStateFilter] = useState("")
+  const filtered = useMemo(() => {
+    if (!search) return homeowners;
+    const s = search.toLowerCase();
+    return homeowners.filter((h) =>
+      h.name.toLowerCase().includes(s) || h.city.toLowerCase().includes(s) || h.email.toLowerCase().includes(s)
+    );
+  }, [homeowners, search]);
 
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState<Homeowner | null>(null)
-
-  const [form, setForm] = useState({
-    tenant_id: "",
-    first_name: "",
-    last_name: "",
-    email: "",
-    phone: "",
-    address_street: "",
-    address_city: "",
-    address_state: "",
-    address_zip: "",
-    internal_notes: "",
-  })
-
-  function openCreate() {
-    setEditing(null)
-    setForm({
-      tenant_id: "",
-      first_name: "",
-      last_name: "",
-      email: "",
-      phone: "",
-      address_street: "",
-      address_city: "",
-      address_state: "",
-      address_zip: "",
-      internal_notes: "",
-    })
-    setModalOpen(true)
-  }
-
-  function openEdit(h: Homeowner) {
-    setEditing(h)
-    setForm({
-      tenant_id: h.tenant_id?.toString() || "",
-      first_name: h.first_name,
-      last_name: h.last_name,
-      email: h.email || "",
-      phone: h.phone || "",
-      address_street: h.address_street || "",
-      address_city: h.address_city || "",
-      address_state: h.address_state || "",
-      address_zip: h.address_zip || "",
-      internal_notes: h.internal_notes || "",
-    })
-    setModalOpen(true)
-  }
-
-  async function load() {
-    setLoading(true)
-    setError("")
-    try {
-      const params = new URLSearchParams()
-      if (search) params.set("search", search)
-      if (cityFilter) params.set("city", cityFilter)
-      if (stateFilter) params.set("state", stateFilter)
-
-      const res = await fetch(`${API_BASE}/homeowners/?${params.toString()}`)
-      if (!res.ok) throw new Error("Failed to load homeowners")
-      const json = await res.json()
-      setHomeowners(json)
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    load()
-  }, [])
-
-  async function save(e: React.FormEvent) {
-    e.preventDefault()
-    setError("")
-
-    const payload: any = {
-      first_name: form.first_name,
-      last_name: form.last_name,
-      email: form.email || null,
-      phone: form.phone || null,
-      address_street: form.address_street || null,
-      address_city: form.address_city || null,
-      address_state: form.address_state || null,
-      address_zip: form.address_zip || null,
-      internal_notes: form.internal_notes || null,
-    }
-
-    if (form.tenant_id) payload.tenant_id = parseInt(form.tenant_id, 10)
-
-    const url = editing
-      ? `${API_BASE}/homeowners/${editing.id}` 
-      : `${API_BASE}/homeowners/` 
-    const method = editing ? "PUT" : "POST"
-
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
-
-    if (!res.ok) {
-      const text = await res.text()
-      setError(text || "Failed to save homeowner")
-      return
-    }
-
-    setModalOpen(false)
-    setEditing(null)
-    await load()
-  }
-
-  async function deleteHomeowner(h: Homeowner) {
-    if (!confirm(`Delete ${h.first_name} ${h.last_name}?`)) return
-    setError("")
-    const res = await fetch(`${API_BASE}/homeowners/${h.id}`, {
-      method: "DELETE",
-    })
-    if (!res.ok && res.status !== 204) {
-      const text = await res.text()
-      setError(text || "Failed to delete homeowner")
-      return
-    }
-    await load()
-  }
+  const activeCount = homeowners.filter((h) => h.status === "active").length;
+  const completedCount = homeowners.filter((h) => h.status === "completed").length;
+  const prospectingCount = homeowners.filter((h) => h.status === "prospecting").length;
 
   return (
-    <div className="p-6 flex flex-col gap-6">
-      <div className="flex justify-between items-start gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">Homeowners</h1>
-          <p className="text-neutral-400 text-sm">
-            Every homeowner that's ever picked up the phone, in one clean list.
-          </p>
+    <DashboardShell>
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <h1 className="font-display text-3xl font-bold uppercase tracking-wider text-cyber-cyan" style={{ textShadow: "0 0 20px rgba(0,240,255,0.5)" }}>
+            Homeowners
+          </h1>
+          <p className="text-sm text-textSecondary font-mono">// Customer records and project history</p>
         </div>
-        <button
-          onClick={openCreate}
-          className="px-4 py-2 rounded bg-orange-500 text-black text-sm font-medium"
-        >
-          New Homeowner
-        </button>
-      </div>
 
-      {error && (
-        <div className="border border-red-700 bg-red-900/40 text-red-200 px-4 py-2 rounded">
-          {error}
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard label="Total Homeowners" value={homeowners.length} variant="cyan" />
+          <KpiCard label="Active Projects" value={activeCount} variant="green" />
+          <KpiCard label="Completed" value={completedCount} variant="magenta" />
+          <KpiCard label="Prospecting" value={prospectingCount} variant="yellow" />
         </div>
-      )}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <input
-          placeholder="Search name or email"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-48 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-xs text-white"
-        />
-        <input
-          placeholder="City"
-          value={cityFilter}
-          onChange={(e) => setCityFilter(e.target.value)}
-          className="w-32 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-xs text-white"
-        />
-        <input
-          placeholder="State"
-          value={stateFilter}
-          onChange={(e) => setStateFilter(e.target.value)}
-          className="w-20 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-xs text-white"
-        />
-        <button
-          onClick={load}
-          className="px-3 py-1 rounded bg-neutral-800 text-xs text-neutral-100"
-        >
-          Apply Filters
-        </button>
-      </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            type="text"
+            placeholder="Search name, city, email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-64 border border-borderSubtle bg-surface px-3 py-2 text-xs text-textPrimary placeholder-textMuted focus:border-cyber-cyan/60 focus:outline-none font-mono"
+          />
+          <span className="text-xs text-textMuted font-mono">{filtered.length} / {homeowners.length} records</span>
+        </div>
 
-      <div className="overflow-x-auto border border-neutral-800 rounded-lg bg-neutral-950">
-        <table className="min-w-full text-xs text-neutral-300">
-          <thead className="bg-neutral-900 text-neutral-500 uppercase">
-            <tr>
-              <th className="px-3 py-2 text-left">ID</th>
-              <th className="px-3 py-2 text-left">Name</th>
-              <th className="px-3 py-2 text-left">Email</th>
-              <th className="px-3 py-2 text-left">Phone</th>
-              <th className="px-3 py-2 text-left">City</th>
-              <th className="px-3 py-2 text-left">State</th>
-              <th className="px-3 py-2 text-left">Lead</th>
-              <th className="px-3 py-2 text-left">Notes</th>
-              <th className="px-3 py-2 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={9} className="px-3 py-4 text-center">
-                  Loading…
-                </td>
+        <section className="cyber-card-tw border-l-4 border-l-cyber-cyan shadow-cyberInset overflow-x-auto p-0">
+          <table className="min-w-full text-xs">
+            <thead>
+              <tr className="border-b border-borderSubtle bg-bgDark">
+                {["ID", "Name", "City", "Phone", "Email", "Active Project", "Status"].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left font-display text-[10px] uppercase tracking-[0.15em] text-cyber-cyan/70">{h}</th>
+                ))}
               </tr>
-            ) : homeowners.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="px-3 py-4 text-center">
-                  No homeowners yet.
-                </td>
-              </tr>
-            ) : (
-              homeowners.map((h) => (
-                <tr
-                  key={h.id}
-                  className="border-t border-neutral-800 hover:bg-neutral-900/60"
-                >
-                  <td className="px-3 py-2 text-neutral-500">#{h.id}</td>
-                  <td className="px-3 py-2">
-                    {h.first_name} {h.last_name}
-                  </td>
-                  <td className="px-3 py-2">{h.email || "—"}</td>
-                  <td className="px-3 py-2">{h.phone || "—"}</td>
-                  <td className="px-3 py-2">{h.address_city || "—"}</td>
-                  <td className="px-3 py-2">{h.address_state || "—"}</td>
-                  <td className="px-3 py-2">—</td>
-                  <td className="px-3 py-2 truncate max-w-xs">
-                    {h.internal_notes || "—"}
-                  </td>
-                  <td className="px-3 py-2 text-right space-x-2">
-                    <button
-                      onClick={() => openEdit(h)}
-                      className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => deleteHomeowner(h)}
-                      className="px-2 py-1 rounded bg-red-700 text-white hover:bg-red-600"
-                    >
-                      Delete
-                    </button>
-                  </td>
+            </thead>
+            <tbody>
+              {filtered.map((ho) => (
+                <tr key={ho.id} className="border-b border-borderSubtle hover:bg-surface/60 transition-colors">
+                  <td className="px-4 py-3 font-mono text-textMuted">{ho.id}</td>
+                  <td className="px-4 py-3 font-medium text-textPrimary">{ho.name}</td>
+                  <td className="px-4 py-3 text-textSecondary">{ho.city}</td>
+                  <td className="px-4 py-3 text-textSecondary font-mono">{ho.phone}</td>
+                  <td className="px-4 py-3 text-textMuted">{ho.email}</td>
+                  <td className="px-4 py-3 text-textSecondary">{ho.activeProject}</td>
+                  <td className="px-4 py-3"><Badge label={ho.status} colorClass={STATUS_COLORS[ho.status]} /></td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        </section>
       </div>
-
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-neutral-950 border border-neutral-800 rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800">
-              <h2 className="text-sm font-semibold text-white">
-                {editing
-                  ? `Edit Homeowner #${editing.id}` 
-                  : "New Homeowner"}
-              </h2>
-              <button
-                onClick={() => {
-                  setModalOpen(false)
-                  setEditing(null)
-                }}
-                className="text-neutral-400 hover:text-neutral-200 text-sm"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={save} className="p-4 space-y-4 text-xs">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-neutral-400 mb-1">Tenant ID</label>
-                  <input
-                    value={form.tenant_id}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, tenant_id: e.target.value }))
-                    }
-                    className="w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-neutral-400 mb-1">First name</label>
-                  <input
-                    required
-                    value={form.first_name}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, first_name: e.target.value }))
-                    }
-                    className="w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-neutral-400 mb-1">Last name</label>
-                  <input
-                    required
-                    value={form.last_name}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, last_name: e.target.value }))
-                    }
-                    className="w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-neutral-400 mb-1">Email</label>
-                  <input
-                    value={form.email}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, email: e.target.value }))
-                    }
-                    className="w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-neutral-400 mb-1">Phone</label>
-                  <input
-                    value={form.phone}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, phone: e.target.value }))
-                    }
-                    className="w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div className="md:col-span-2">
-                  <label className="block text-neutral-400 mb-1">Street Address</label>
-                  <input
-                    value={form.address_street}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, address_street: e.target.value }))
-                    }
-                    className="w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-neutral-400 mb-1">City</label>
-                  <input
-                    value={form.address_city}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, address_city: e.target.value }))
-                    }
-                    className="w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-white"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-neutral-400 mb-1">State</label>
-                    <input
-                      value={form.address_state}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, address_state: e.target.value }))
-                      }
-                      className="w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-neutral-400 mb-1">ZIP</label>
-                    <input
-                      value={form.address_zip}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, address_zip: e.target.value }))
-                      }
-                      className="w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-white"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-neutral-400 mb-1">Notes</label>
-                <textarea
-                  rows={3}
-                  value={form.internal_notes}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, internal_notes: e.target.value }))
-                  }
-                  className="w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-white"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 mt-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setModalOpen(false)
-                    setEditing(null)
-                  }}
-                  className="px-3 py-1 rounded border border-neutral-700 text-neutral-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 rounded bg-orange-500 text-black font-medium"
-                >
-                  {editing ? "Save Changes" : "Create Homeowner"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+    </DashboardShell>
+  );
 }

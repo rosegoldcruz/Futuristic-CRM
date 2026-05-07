@@ -1,121 +1,126 @@
-"use client"
+// TODO: reconnect to Postgres/Supabase when backend is available.
+"use client";
 
-import Link from "next/link"
-import { Users, Home, Shield } from "lucide-react"
+import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { Globe2, Home, Wrench, Factory } from "lucide-react";
+
+function PortalCard({
+  icon: Icon,
+  title,
+  description,
+  stats,
+  accentColor,
+  borderColor,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+  stats: { label: string; value: string }[];
+  accentColor: string;
+  borderColor: string;
+}) {
+  return (
+    <div className={`cyber-card-tw ${borderColor} shadow-cyberInset space-y-4`}>
+      <div className="flex items-center gap-3">
+        <div className={`flex h-10 w-10 items-center justify-center border ${borderColor} bg-bgDark`}>
+          <Icon className={`h-5 w-5 ${accentColor}`} />
+        </div>
+        <div>
+          <h2 className={`font-display text-sm font-bold uppercase tracking-wider ${accentColor}`}>{title}</h2>
+          <p className="text-xs text-textMuted font-mono">{description}</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {stats.map((s) => (
+          <div key={s.label} className="border border-borderSubtle bg-bgDark p-3">
+            <p className="font-display text-[10px] uppercase tracking-widest text-textMuted">// {s.label}</p>
+            <p className={`mt-1 text-lg font-bold font-display ${accentColor}`}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+      <button className={`w-full border ${borderColor} bg-bgDark py-2 text-xs font-display font-bold uppercase tracking-widest ${accentColor} hover:bg-surface/60 transition-colors`}>
+        → Access Portal
+      </button>
+    </div>
+  );
+}
+
+function KpiCard({ label, value, variant = "cyan" }: { label: string; value: string | number; variant?: "cyan" | "green" | "yellow" | "magenta" }) {
+  const colors = {
+    cyan: { border: "border-cyber-cyan/30", text: "text-cyber-cyan", glow: "rgba(0,240,255,0.5)" },
+    green: { border: "border-cyber-green/30", text: "text-cyber-green", glow: "rgba(0,255,102,0.5)" },
+    yellow: { border: "border-cyber-yellow/30", text: "text-cyber-yellow", glow: "rgba(255,230,0,0.5)" },
+    magenta: { border: "border-cyber-magenta/30", text: "text-cyber-magenta", glow: "rgba(255,0,255,0.5)" },
+  };
+  const c = colors[variant];
+  return (
+    <div className={`cyber-card-tw ${c.border} shadow-cyberInset`}>
+      <p className="font-display text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">// {label}</p>
+      <p className={`mt-2 text-2xl font-bold font-display ${c.text}`} style={{ textShadow: `0 0 15px ${c.glow}` }}>{value}</p>
+    </div>
+  );
+}
 
 export default function PortalsPage() {
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold text-white">AEON Portals</h1>
-        <p className="text-sm text-neutral-400">
-          Access role-specific portals with filtered data
-        </p>
-      </header>
+    <DashboardShell>
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <h1 className="font-display text-3xl font-bold uppercase tracking-wider text-cyber-cyan" style={{ textShadow: "0 0 20px rgba(0,240,255,0.5)" }}>
+            Portals
+          </h1>
+          <p className="text-sm text-textSecondary font-mono">// Customer, installer, and supplier portal access center</p>
+        </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Installer Portal */}
-        <Link
-          href="/portal/installer"
-          className="group relative overflow-hidden rounded-lg border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-6 transition hover:border-amber-500/50"
-        >
-          <div className="relative z-10">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-amber-500/20">
-              <Users className="h-6 w-6 text-amber-400" />
-            </div>
-            <h2 className="mb-2 text-xl font-semibold text-white">Installer Portal</h2>
-            <p className="text-sm text-neutral-400">
-              View your assigned jobs, work orders, and project documents
-            </p>
-            <div className="mt-4 flex items-center gap-2 text-sm text-amber-400">
-              <span>Access Portal</span>
-              <span>→</span>
-            </div>
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 to-amber-500/5 opacity-0 transition group-hover:opacity-100"></div>
-        </Link>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard label="Active Sessions" value="12" variant="cyan" />
+          <KpiCard label="Homeowner Portals" value="8" variant="green" />
+          <KpiCard label="Installer Portals" value="7" variant="yellow" />
+          <KpiCard label="Supplier Portals" value="6" variant="magenta" />
+        </div>
 
-        {/* Homeowner Portal */}
-        <Link
-          href="/portal/homeowner"
-          className="group relative overflow-hidden rounded-lg border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-6 transition hover:border-emerald-500/50"
-        >
-          <div className="relative z-10">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/20">
-              <Home className="h-6 w-6 text-emerald-400" />
-            </div>
-            <h2 className="mb-2 text-xl font-semibold text-white">Homeowner Portal</h2>
-            <p className="text-sm text-neutral-400">
-              Review quotes, track jobs, and view your project documents
-            </p>
-            <div className="mt-4 flex items-center gap-2 text-sm text-emerald-400">
-              <span>Access Portal</span>
-              <span>→</span>
-            </div>
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 to-emerald-500/5 opacity-0 transition group-hover:opacity-100"></div>
-        </Link>
-
-        {/* Admin Portal */}
-        <Link
-          href="/portal/admin"
-          className="group relative overflow-hidden rounded-lg border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-6 transition hover:border-blue-500/50"
-        >
-          <div className="relative z-10">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-500/20">
-              <Shield className="h-6 w-6 text-blue-400" />
-            </div>
-            <h2 className="mb-2 text-xl font-semibold text-white">Admin Portal</h2>
-            <p className="text-sm text-neutral-400">
-              System-wide overview with full access to all data and operations
-            </p>
-            <div className="mt-4 flex items-center gap-2 text-sm text-blue-400">
-              <span>Access Portal</span>
-              <span>→</span>
-            </div>
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/5 opacity-0 transition group-hover:opacity-100"></div>
-        </Link>
-      </div>
-
-      <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-5">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
-          Portal Features
-        </h2>
-        <div className="grid gap-4 md:grid-cols-3">
-          <div>
-            <h3 className="mb-2 font-medium text-white">Role-Based Access</h3>
-            <p className="text-sm text-neutral-400">
-              Each portal shows only relevant data based on user role and permissions
-            </p>
-          </div>
-          <div>
-            <h3 className="mb-2 font-medium text-white">Data Isolation</h3>
-            <p className="text-sm text-neutral-400">
-              Installers see only their jobs, homeowners see only their quotes
-            </p>
-          </div>
-          <div>
-            <h3 className="mb-2 font-medium text-white">Secure Sessions</h3>
-            <p className="text-sm text-neutral-400">
-              All portals enforce authentication and tenant-level isolation
-            </p>
-          </div>
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <PortalCard
+            icon={Home}
+            title="Homeowner Portal"
+            description="View project status, documents, and timeline"
+            accentColor="text-cyber-cyan"
+            borderColor="border-cyber-cyan/30"
+            stats={[
+              { label: "Active Users", value: "8" },
+              { label: "Open Projects", value: "6" },
+              { label: "Docs Pending", value: "3" },
+              { label: "Satisfaction", value: "4.8★" },
+            ]}
+          />
+          <PortalCard
+            icon={Wrench}
+            title="Installer Portal"
+            description="Work orders, job documents, and scheduling"
+            accentColor="text-cyber-yellow"
+            borderColor="border-cyber-yellow/30"
+            stats={[
+              { label: "Active Installers", value: "7" },
+              { label: "Work Orders", value: "6" },
+              { label: "Completed Today", value: "1" },
+              { label: "Avg SLA", value: "97.4%" },
+            ]}
+          />
+          <PortalCard
+            icon={Factory}
+            title="Supplier Portal"
+            description="Order status, inventory, and delivery management"
+            accentColor="text-cyber-magenta"
+            borderColor="border-cyber-magenta/30"
+            stats={[
+              { label: "Active Suppliers", value: "6" },
+              { label: "Open Orders", value: "18" },
+              { label: "Delayed Items", value: "2" },
+              { label: "OTIF Rate", value: "96.4%" },
+            ]}
+          />
         </div>
       </div>
-
-      <div className="rounded-lg border border-amber-900/50 bg-amber-950/20 p-5">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-amber-400">
-          Authentication Notice
-        </h2>
-        <p className="text-sm text-neutral-300">
-          Portal access is currently running in preview mode with mock authentication.
-          Role routing and organization-based access control can be added later.
-        </p>
-        <p className="mt-2 text-xs text-neutral-500">
-          Current mode: Development (Mock authentication with full access)
-        </p>
-      </div>
-    </div>
-  )
+    </DashboardShell>
+  );
 }
