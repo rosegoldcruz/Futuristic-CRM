@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { mockInstallers } from "@/app/lib/mockData";
 import type { Installer } from "@/app/lib/mockData";
+import { DetailField, DetailModal } from "@/components/ui/detail-modal";
 
 const AVAIL_COLORS: Record<Installer["availability"], string> = {
   available: "bg-cyber-green/10 border-cyber-green/50 text-cyber-green",
@@ -39,6 +40,7 @@ function KpiCard({ label, value, variant = "cyan" }: { label: string; value: str
 
 export default function InstallersPage() {
   const [search, setSearch] = useState("");
+  const [selectedInstaller, setSelectedInstaller] = useState<Installer | null>(null);
   const installers = mockInstallers;
 
   const filtered = useMemo(() => {
@@ -93,7 +95,11 @@ export default function InstallersPage() {
             </thead>
             <tbody>
               {filtered.map((ins) => (
-                <tr key={ins.id} className="border-b border-borderSubtle hover:bg-surface/60 transition-colors">
+                <tr
+                  key={ins.id}
+                  className="cursor-pointer border-b border-borderSubtle transition-colors hover:bg-surface/60"
+                  onClick={() => setSelectedInstaller(ins)}
+                >
                   <td className="px-4 py-3 font-mono text-textMuted">{ins.id}</td>
                   <td className="px-4 py-3 font-medium text-textPrimary">{ins.name}</td>
                   <td className="px-4 py-3 text-textSecondary">{ins.coverageArea}</td>
@@ -116,6 +122,23 @@ export default function InstallersPage() {
           </table>
         </section>
       </div>
+      {selectedInstaller ? (
+        <DetailModal
+          title={`Installer Card — ${selectedInstaller.name}`}
+          subtitle={selectedInstaller.id}
+          onClose={() => setSelectedInstaller(null)}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DetailField label="Company" value={selectedInstaller.name} />
+            <DetailField label="Coverage Area" value={selectedInstaller.coverageArea} />
+            <DetailField label="Availability" value={selectedInstaller.availability} />
+            <DetailField label="Status" value={selectedInstaller.status} />
+            <DetailField label="Active Jobs" value={selectedInstaller.activeJobs} />
+            <DetailField label="SLA Score" value={`${selectedInstaller.slaScore}%`} />
+            <DetailField label="Rating" value={`★ ${selectedInstaller.rating.toFixed(1)}`} />
+          </div>
+        </DetailModal>
+      ) : null}
     </DashboardShell>
   );
 }

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { mockHomeowners } from "@/app/lib/mockData";
 import type { Homeowner } from "@/app/lib/mockData";
+import { DetailField, DetailModal } from "@/components/ui/detail-modal";
 
 const STATUS_COLORS: Record<Homeowner["status"], string> = {
   active: "bg-cyber-cyan/10 border-cyber-cyan/50 text-cyber-cyan",
@@ -40,6 +41,7 @@ function KpiCard({ label, value, variant = "cyan" }: { label: string; value: str
 
 export default function HomeownersPage() {
   const [search, setSearch] = useState("");
+  const [selectedHomeowner, setSelectedHomeowner] = useState<Homeowner | null>(null);
   const homeowners = mockHomeowners;
 
   const filtered = useMemo(() => {
@@ -93,7 +95,11 @@ export default function HomeownersPage() {
             </thead>
             <tbody>
               {filtered.map((ho) => (
-                <tr key={ho.id} className="border-b border-borderSubtle hover:bg-surface/60 transition-colors">
+                <tr
+                  key={ho.id}
+                  className="cursor-pointer border-b border-borderSubtle transition-colors hover:bg-surface/60"
+                  onClick={() => setSelectedHomeowner(ho)}
+                >
                   <td className="px-4 py-3 font-mono text-textMuted">{ho.id}</td>
                   <td className="px-4 py-3 font-medium text-textPrimary">{ho.name}</td>
                   <td className="px-4 py-3 text-textSecondary">{ho.city}</td>
@@ -107,6 +113,22 @@ export default function HomeownersPage() {
           </table>
         </section>
       </div>
+      {selectedHomeowner ? (
+        <DetailModal
+          title={`Homeowner Card — ${selectedHomeowner.name}`}
+          subtitle={selectedHomeowner.id}
+          onClose={() => setSelectedHomeowner(null)}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DetailField label="Name" value={selectedHomeowner.name} />
+            <DetailField label="City" value={selectedHomeowner.city} />
+            <DetailField label="Phone" value={selectedHomeowner.phone} />
+            <DetailField label="Email" value={selectedHomeowner.email} />
+            <DetailField label="Active Project" value={selectedHomeowner.activeProject} />
+            <DetailField label="Status" value={selectedHomeowner.status} />
+          </div>
+        </DetailModal>
+      ) : null}
     </DashboardShell>
   );
 }

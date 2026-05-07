@@ -6,6 +6,8 @@ import { useMemo, useState } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { mockLeads } from "@/app/lib/mockData";
 import type { Lead } from "@/app/lib/mockData";
+import { DetailField, DetailModal } from "@/components/ui/detail-modal";
+import { formatStatusLabel } from "@/app/lib/format";
 
 const STATUS_COLORS: Record<Lead["status"], string> = {
   new: "bg-textMuted/20 border-textMuted/50 text-textMuted",
@@ -63,6 +65,7 @@ function KpiCard({
 export default function LeadsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
   const leads = mockLeads;
 
@@ -160,7 +163,8 @@ export default function LeadsPage() {
                 filtered.map((lead) => (
                   <tr
                     key={lead.id}
-                    className="border-b border-borderSubtle hover:bg-surface/60 transition-colors"
+                    className="cursor-pointer border-b border-borderSubtle transition-colors hover:bg-surface/60"
+                    onClick={() => setSelectedLead(lead)}
                   >
                     <td className="px-4 py-3 font-medium text-textPrimary whitespace-nowrap">
                       <div>{lead.name}</div>
@@ -184,6 +188,30 @@ export default function LeadsPage() {
           </table>
         </section>
       </div>
+      {selectedLead ? (
+        <DetailModal
+          title={`Lead Card — ${selectedLead.name}`}
+          subtitle={`${selectedLead.id} • ${selectedLead.projectType}`}
+          onClose={() => setSelectedLead(null)}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DetailField label="Phone" value={selectedLead.phone} />
+            <DetailField label="Email" value={selectedLead.email} />
+            <DetailField label="Address" value={selectedLead.address} />
+            <DetailField label="City" value={selectedLead.city} />
+            <DetailField label="Source" value={selectedLead.source} />
+            <DetailField label="Budget Range" value={selectedLead.budgetRange} />
+            <DetailField label="Status" value={formatStatusLabel(selectedLead.status)} />
+            <DetailField label="Priority" value={formatStatusLabel(selectedLead.priority)} />
+            <DetailField label="Call Disposition" value={formatStatusLabel(selectedLead.callDisposition)} />
+            <DetailField label="Next Follow-Up" value={selectedLead.nextFollowUp} />
+          </div>
+          <div className="mt-3 border border-borderSubtle/80 bg-surface/40 px-3 py-2">
+            <p className="text-[10px] font-display font-bold uppercase tracking-[0.15em] text-cyber-cyan/70">Notes</p>
+            <p className="mt-1 text-sm text-textPrimary">{selectedLead.notes}</p>
+          </div>
+        </DetailModal>
+      ) : null}
     </DashboardShell>
   );
 }

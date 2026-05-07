@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { mockQuotes } from "@/app/lib/mockData";
 import type { Quote } from "@/app/lib/mockData";
+import { DetailField, DetailModal } from "@/components/ui/detail-modal";
 
 const STATUS_COLORS: Record<Quote["status"], string> = {
   draft: "bg-textMuted/20 border-textMuted/50 text-textMuted",
@@ -44,6 +45,7 @@ function KpiCard({ label, value, variant = "cyan" }: { label: string; value: str
 export default function QuotesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
 
   const quotes = mockQuotes;
 
@@ -132,7 +134,11 @@ export default function QuotesPage() {
                 </tr>
               ) : (
                 filtered.map((q) => (
-                  <tr key={q.id} className="border-b border-borderSubtle hover:bg-surface/60 transition-colors">
+                  <tr
+                    key={q.id}
+                    className="cursor-pointer border-b border-borderSubtle transition-colors hover:bg-surface/60"
+                    onClick={() => setSelectedQuote(q)}
+                  >
                     <td className="px-4 py-3 font-mono text-textMuted">{q.id}</td>
                     <td className="px-4 py-3 font-medium text-textPrimary whitespace-nowrap">{q.customerName}</td>
                     <td className="px-4 py-3 text-textSecondary">{q.projectType}</td>
@@ -160,6 +166,25 @@ export default function QuotesPage() {
           </table>
         </section>
       </div>
+      {selectedQuote ? (
+        <DetailModal
+          title={`Quote Card — ${selectedQuote.id}`}
+          subtitle={`${selectedQuote.customerName} • ${selectedQuote.projectType}`}
+          onClose={() => setSelectedQuote(null)}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DetailField label="Customer" value={selectedQuote.customerName} />
+            <DetailField label="Project Type" value={selectedQuote.projectType} />
+            <DetailField label="City" value={selectedQuote.city} />
+            <DetailField label="Amount" value={`$${selectedQuote.amount.toLocaleString()}`} />
+            <DetailField label="Status" value={selectedQuote.status} />
+            <DetailField label="Sent At" value={selectedQuote.sentAt} />
+            <DetailField label="Valid Until" value={selectedQuote.validUntil} />
+            <DetailField label="Assigned Rep" value={selectedQuote.assignedRep} />
+            <DetailField label="Close Probability" value={`${selectedQuote.probability}%`} />
+          </div>
+        </DetailModal>
+      ) : null}
     </DashboardShell>
   );
 }

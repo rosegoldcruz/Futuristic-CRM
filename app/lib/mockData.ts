@@ -7,12 +7,15 @@ export type Lead = {
   name: string;
   phone: string;
   email: string;
+  address: string;
   city: string;
   projectType: string;
   source: string;
   budgetRange: string;
   status: "new" | "contacted" | "qualified" | "hot" | "quote-ready" | "lost";
   priority: "high" | "medium" | "low";
+  callDisposition: "no-answer" | "left-voicemail" | "follow-up-booked" | "quoted" | "not-interested";
+  notes: string;
   createdAt: string;
   nextFollowUp: string;
 };
@@ -80,6 +83,8 @@ export type Material = {
   name: string;
   category: string;
   supplier: string;
+  dimensions: string;
+  imageLabel: string;
   stockStatus: "in-stock" | "low-stock" | "out-of-stock" | "on-order";
   eta: string;
 };
@@ -117,12 +122,15 @@ export const mockLeads: Lead[] = [
     name: "Emma Castillo",
     phone: "(602) 555-0191",
     email: "emma.c@email.com",
+    address: "8712 E Via Linda Blvd, Scottsdale, AZ 85258",
     city: "Scottsdale, AZ",
     projectType: "Kitchen Reface",
     source: "Meta Ads",
     budgetRange: "$8K–$12K",
     status: "hot",
     priority: "high",
+    callDisposition: "follow-up-booked",
+    notes: "Asked for white shaker with soft-close upgrade. Wants install before end of month.",
     createdAt: "2025-05-01",
     nextFollowUp: "2025-05-08",
   },
@@ -131,12 +139,15 @@ export const mockLeads: Lead[] = [
     name: "Marcus Wilson",
     phone: "(480) 555-0342",
     email: "mwilson@email.com",
+    address: "1943 N Higley Rd, Mesa, AZ 85205",
     city: "Mesa, AZ",
     projectType: "Cabinet Replacement",
     source: "TikTok",
     budgetRange: "$15K–$20K",
     status: "quote-ready",
     priority: "high",
+    callDisposition: "quoted",
+    notes: "Requested premium hardware options and financing terms before signing quote.",
     createdAt: "2025-05-02",
     nextFollowUp: "2025-05-07",
   },
@@ -145,12 +156,15 @@ export const mockLeads: Lead[] = [
     name: "Diane Alvarez",
     phone: "(623) 555-0784",
     email: "d.alvarez@email.com",
+    address: "3309 W Camelback Rd, Phoenix, AZ 85017",
     city: "Phoenix, AZ",
     projectType: "Closet Build-Out",
     source: "Referral",
     budgetRange: "$5K–$8K",
     status: "contacted",
     priority: "medium",
+    callDisposition: "left-voicemail",
+    notes: "Could not connect live. Sent follow-up text with booking link for consult.",
     createdAt: "2025-05-03",
     nextFollowUp: "2025-05-10",
   },
@@ -159,12 +173,15 @@ export const mockLeads: Lead[] = [
     name: "James Park",
     phone: "(602) 555-0456",
     email: "jpark@email.com",
+    address: "1414 E Broadway Rd, Tempe, AZ 85282",
     city: "Tempe, AZ",
     projectType: "Full Kitchen Remodel",
     source: "Google",
     budgetRange: "$25K–$40K",
     status: "qualified",
     priority: "high",
+    callDisposition: "follow-up-booked",
+    notes: "Confirmed in-home measurement appointment for Friday at 3:00 PM.",
     createdAt: "2025-05-04",
     nextFollowUp: "2025-05-09",
   },
@@ -173,12 +190,15 @@ export const mockLeads: Lead[] = [
     name: "Rachel Kim",
     phone: "(480) 555-0988",
     email: "rkim@email.com",
+    address: "2200 N Dobson Rd, Chandler, AZ 85224",
     city: "Chandler, AZ",
     projectType: "Bathroom Vanity",
     source: "Instagram",
     budgetRange: "$3K–$6K",
     status: "new",
     priority: "low",
+    callDisposition: "no-answer",
+    notes: "Lead form submitted late night. No pickup yet; queued for second call attempt.",
     createdAt: "2025-05-05",
     nextFollowUp: "2025-05-11",
   },
@@ -187,12 +207,15 @@ export const mockLeads: Lead[] = [
     name: "Tony Nguyen",
     phone: "(602) 555-0123",
     email: "tnguyen@email.com",
+    address: "1050 S Val Vista Dr, Gilbert, AZ 85296",
     city: "Gilbert, AZ",
     projectType: "Kitchen Reface",
     source: "Meta Ads",
     budgetRange: "$10K–$14K",
     status: "hot",
     priority: "high",
+    callDisposition: "follow-up-booked",
+    notes: "Interested in cabinet reface + island wrap. Requested Saturday consultation.",
     createdAt: "2025-05-05",
     nextFollowUp: "2025-05-08",
   },
@@ -201,12 +224,15 @@ export const mockLeads: Lead[] = [
     name: "Sarah Bennett",
     phone: "(623) 555-0677",
     email: "sbennett@email.com",
+    address: "8190 W Deer Valley Rd, Peoria, AZ 85382",
     city: "Peoria, AZ",
     projectType: "Laundry Room Build",
     source: "Referral",
     budgetRange: "$4K–$7K",
     status: "contacted",
     priority: "medium",
+    callDisposition: "left-voicemail",
+    notes: "Needs custom storage layout. Waiting on callback to confirm measurements.",
     createdAt: "2025-05-06",
     nextFollowUp: "2025-05-12",
   },
@@ -215,12 +241,15 @@ export const mockLeads: Lead[] = [
     name: "David Torres",
     phone: "(480) 555-0321",
     email: "dtorres@email.com",
+    address: "7230 E Shea Blvd, Scottsdale, AZ 85260",
     city: "Scottsdale, AZ",
     projectType: "Whole Home Reface",
     source: "Google",
     budgetRange: "$30K–$50K",
     status: "qualified",
     priority: "high",
+    callDisposition: "follow-up-booked",
+    notes: "Wants full-home package estimate. Requested references and financing sheet.",
     createdAt: "2025-05-06",
     nextFollowUp: "2025-05-09",
   },
@@ -437,14 +466,14 @@ export const mockSuppliers: Supplier[] = [
 
 // ─── Materials ─────────────────────────────────────────────────────────────
 export const mockMaterials: Material[] = [
-  { sku: "CAB-DOR-001", name: 'Shaker Door 12"', category: "Cabinet Doors", supplier: "AZ Cabinet Supply", stockStatus: "in-stock", eta: "—" },
-  { sku: "CAB-DOR-002", name: 'Shaker Door 18"', category: "Cabinet Doors", supplier: "AZ Cabinet Supply", stockStatus: "low-stock", eta: "2025-05-10" },
-  { sku: "CAB-PNL-001", name: "Side Panel 36H", category: "Panels", supplier: "ProPanel AZ", stockStatus: "in-stock", eta: "—" },
-  { sku: "CLO-SYS-001", name: "Closet Tower 84H", category: "Closet Systems", supplier: "Closet Depot", stockStatus: "on-order", eta: "2025-05-11" },
-  { sku: "VAN-001", name: 'Vanity Unit 36"', category: "Bath Vanities", supplier: "Vanity Pro Supply", stockStatus: "out-of-stock", eta: "2025-05-18" },
-  { sku: "HDW-001", name: "Euro Hinge 110°", category: "Hardware", supplier: "Phoenix Hardware Co.", stockStatus: "in-stock", eta: "—" },
-  { sku: "HDW-002", name: "Soft-Close Drawer Slide", category: "Hardware", supplier: "Phoenix Hardware Co.", stockStatus: "in-stock", eta: "—" },
-  { sku: "CAB-BOX-001", name: 'Base Cabinet 24"', category: "Cabinet Boxes", supplier: "Southwest Cabinet Group", stockStatus: "low-stock", eta: "2025-05-13" },
+  { sku: "CAB-DOR-001", name: 'Shaker Door 12"', category: "Cabinet Doors", supplier: "AZ Cabinet Supply", dimensions: '12"W x 30"H x 0.75"D', imageLabel: "White Shaker Door Panel", stockStatus: "in-stock", eta: "—" },
+  { sku: "CAB-DOR-002", name: 'Shaker Door 18"', category: "Cabinet Doors", supplier: "AZ Cabinet Supply", dimensions: '18"W x 30"H x 0.75"D', imageLabel: "White Shaker Door Panel", stockStatus: "low-stock", eta: "2025-05-10" },
+  { sku: "CAB-PNL-001", name: "Side Panel 36H", category: "Panels", supplier: "ProPanel AZ", dimensions: '24"W x 36"H x 0.75"D', imageLabel: "Cabinet Side Panel", stockStatus: "in-stock", eta: "—" },
+  { sku: "CLO-SYS-001", name: "Closet Tower 84H", category: "Closet Systems", supplier: "Closet Depot", dimensions: '30"W x 84"H x 16"D', imageLabel: "Laminate Closet Tower", stockStatus: "on-order", eta: "2025-05-11" },
+  { sku: "VAN-001", name: 'Vanity Unit 36"', category: "Bath Vanities", supplier: "Vanity Pro Supply", dimensions: '36"W x 34.5"H x 21"D', imageLabel: "Single Sink Vanity Unit", stockStatus: "out-of-stock", eta: "2025-05-18" },
+  { sku: "HDW-001", name: "Euro Hinge 110°", category: "Hardware", supplier: "Phoenix Hardware Co.", dimensions: '2.5"W x 1.25"H x 0.6"D', imageLabel: "Concealed Cabinet Hinge", stockStatus: "in-stock", eta: "—" },
+  { sku: "HDW-002", name: "Soft-Close Drawer Slide", category: "Hardware", supplier: "Phoenix Hardware Co.", dimensions: '18"L x 1.8"H x 0.5"D', imageLabel: "Ball-Bearing Drawer Slide", stockStatus: "in-stock", eta: "—" },
+  { sku: "CAB-BOX-001", name: 'Base Cabinet 24"', category: "Cabinet Boxes", supplier: "Southwest Cabinet Group", dimensions: '24"W x 34.5"H x 24"D', imageLabel: "Plywood Base Cabinet Box", stockStatus: "low-stock", eta: "2025-05-13" },
 ];
 
 // ─── Payments ──────────────────────────────────────────────────────────────
