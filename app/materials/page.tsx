@@ -6,6 +6,7 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { mockMaterials } from "@/app/lib/mockData";
 import type { Material } from "@/app/lib/mockData";
 import { DetailField, DetailModal } from "@/components/ui/detail-modal";
+import { formatHyphenLabel } from "@/app/lib/format";
 
 const STOCK_COLORS: Record<Material["stockStatus"], string> = {
   "in-stock": "bg-cyber-green/10 border-cyber-green/50 text-cyber-green",
@@ -136,7 +137,7 @@ export default function MaterialsPage() {
             <DetailField label="Name" value={selectedMaterial.name} />
             <DetailField label="Category" value={selectedMaterial.category} />
             <DetailField label="Supplier" value={selectedMaterial.supplier} />
-            <DetailField label="Stock Status" value={selectedMaterial.stockStatus.replace("-", " ")} />
+            <DetailField label="Stock Status" value={formatHyphenLabel(selectedMaterial.stockStatus)} />
             <DetailField label="Dimensions" value={selectedMaterial.dimensions} />
             <DetailField label="ETA" value={selectedMaterial.eta} />
           </div>
