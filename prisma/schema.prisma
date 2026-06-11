@@ -1,0 +1,337 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  USER
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  DISABLED
+}
+
+enum ContactStatus {
+  ACTIVE
+  INVALID
+  SUPPRESSED
+  BOUNCED
+  UNSUBSCRIBED
+}
+
+enum TemplateStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum CampaignStatus {
+  DRAFT
+  READY_FOR_REVIEW
+  DRY_RUN_PREPARED
+  EXPORTED_TO_SEND_LAYER
+  ACTIVE_EXTERNAL
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum QueueStatus {
+  QUEUED
+  DRY_RUN_PREPARED
+  SKIPPED_SUPPRESSED
+  SKIPPED_INVALID
+  SKIPPED_DUPLICATE
+  EXPORTED
+  API_PENDING
+  API_SYNCED
+  API_FAILED
+  FAILED
+}
+
+enum SuppressionReason {
+  UNSUBSCRIBE
+  BOUNCE
+  COMPLAINT
+  MANUAL
+  INVALID
+  DUPLICATE
+  DO_NOT_CONTACT
+}
+
+enum SendLayer {
+  DRY_RUN
+  SMARTLEAD
+  INSTANTLY
+}
+
+enum SendLayerSyncStatus {
+  NOT_CONNECTED
+  DRY_RUN
+  READY_TO_EXPORT
+  EXPORTED
+  API_PENDING
+  API_SYNCED
+  API_FAILED
+}
+
+enum AutomationStatus {
+  NOT_CONFIGURED
+  ENABLED
+  DISABLED
+  SENT
+  FAILED
+  RECEIVED
+  PROCESSED
+}
+
+enum AutomationDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum ValueType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+  SECRET_REF
+}
+
+model User {
+  id          String     @id @default(cuid())
+  privyUserId String?    @unique
+  email       String     @unique
+  name        String?
+  role        UserRole   @default(USER)
+  status      UserStatus @default(PENDING)
+  lastLoginAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Company {
+  id        String    @id @default(cuid())
+  name      String
+  website   String?
+  domain    String?
+  industry  String?
+  address   String?
+  city      String?
+  state     String?
+  zip       String?
+  country   String?
+  source    String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  contacts  Contact[]
+}
+
+model Contact {
+  id          String            @id @default(cuid())
+  email       String            @unique
+  firstName   String?
+  lastName    String?
+  fullName    String?
+  phone       String?
+  title       String?
+  companyId   String?
+  company     Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  source      String?
+  status      ContactStatus     @default(ACTIVE)
+  tags        String[]          @default([])
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  leadLists   LeadListContact[]
+  queueItems  CampaignQueueItem[]
+  events      CampaignEvent[]
+
+  @@index([companyId])
+}
+
+model LeadList {
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  source      String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  contacts    LeadListContact[]
+  campaigns   Campaign[]
+}
+
+model LeadListContact {
+  id        String   @id @default(cuid())
+  listId    String
+  contactId String
+  createdAt DateTime @default(now())
+  list      LeadList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, contactId])
+  @@index([contactId])
+}
+
+model EmailTemplate {
+  id         String              @id @default(cuid())
+  name       String
+  subject    String
+  body       String
+  variables  Json?
+  status     TemplateStatus      @default(DRAFT)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  campaigns  Campaign[]
+  queueItems CampaignQueueItem[]
+}
+
+model Campaign {
+  id               String              @id @default(cuid())
+  name             String
+  description      String?
+  status           CampaignStatus      @default(DRAFT)
+  listId           String?
+  list             LeadList?           @relation(fields: [listId], references: [id], onDelete: SetNull)
+  templateId       String?
+  template         EmailTemplate?      @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  sendLayer        SendLayer           @default(DRY_RUN)
+  fromName         String?
+  fromEmail        String?
+  replyToEmail     String?
+  dailyLimit       Int?
+  sendWindowStart  String?
+  sendWindowEnd    String?
+  timezone         String?
+  complianceFooter String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  queueItems       CampaignQueueItem[]
+  events           CampaignEvent[]
+  exports          SendLayerExport[]
+
+  @@index([listId])
+  @@index([templateId])
+}
+
+model CampaignQueueItem {
+  id           String         @id @default(cuid())
+  campaignId   String
+  contactId    String
+  templateId   String?
+  toEmail      String
+  fromEmail    String?
+  replyToEmail String?
+  subject      String?
+  body         String?
+  status       QueueStatus    @default(QUEUED)
+  scheduledAt  DateTime?
+  preparedAt   DateTime?
+  exportedAt   DateTime?
+  externalId   String?
+  failureReason String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  campaign     Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact      Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  template     EmailTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  events       CampaignEvent[]
+
+  @@unique([campaignId, contactId])
+  @@index([contactId])
+  @@index([templateId])
+}
+
+model CampaignEvent {
+  id          String             @id @default(cuid())
+  queueItemId String?
+  campaignId  String?
+  contactId   String?
+  type        String
+  metadata    Json?
+  createdAt   DateTime           @default(now())
+  queueItem   CampaignQueueItem? @relation(fields: [queueItemId], references: [id], onDelete: SetNull)
+  campaign    Campaign?          @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  contact     Contact?           @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([queueItemId])
+  @@index([campaignId])
+  @@index([contactId])
+}
+
+model Suppression {
+  id        String            @id @default(cuid())
+  email     String            @unique
+  reason    SuppressionReason
+  source    String?
+  createdAt DateTime          @default(now())
+}
+
+model SendLayerExport {
+  id         String              @id @default(cuid())
+  campaignId String?
+  provider   SendLayer
+  status     SendLayerSyncStatus @default(DRY_RUN)
+  filePath   String?
+  metadata   Json?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  campaign   Campaign?           @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId])
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  action      String
+  entityType  String
+  entityId    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+}
+
+model Setting {
+  id          String    @id @default(cuid())
+  key         String    @unique
+  value       String?
+  valueType   ValueType @default(STRING)
+  isSecret    Boolean   @default(false)
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model AutomationEvent {
+  id         String           @id @default(cuid())
+  eventType  String
+  entityType String?
+  entityId   String?
+  status     AutomationStatus @default(RECEIVED)
+  payload    Json?
+  response   Json?
+  error      String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+}
+
+model AutomationWorkflow {
+  id             String              @id @default(cuid())
+  name           String
+  slug           String              @unique
+  direction      AutomationDirection
+  status         AutomationStatus    @default(NOT_CONFIGURED)
+  n8nWebhookPath String?
+  description    String?
+  lastHeartbeatAt DateTime?
+  lastRunAt      DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+}

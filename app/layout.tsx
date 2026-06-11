@@ -1,9 +1,10 @@
 import "../globals.css";
 import type { Metadata } from "next";
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Vulpine Marketplace OS",
-  description: "AEON x Vulpine – Advanced Efficient Optimized Network for contractors and materials.",
+  title: "Vulpine Command Center",
+  description: "Vulpine Command Center CRM shell.",
 };
 
 export default function RootLayout({
@@ -22,7 +23,7 @@ export default function RootLayout({
         />
       </head>
       <body className="h-full bg-bgDarkest text-textPrimary antialiased font-mono scan-lines">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
