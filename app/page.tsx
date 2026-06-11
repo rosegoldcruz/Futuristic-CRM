@@ -15,7 +15,7 @@ export default function HomePage() {
               Vulpine Command Center
             </h1>
             <p className="max-w-2xl text-base leading-7 text-textSecondary">
-              Public entry point for the Vulpine CRM shell. Operational routes are protected by Privy and local access status.
+              Public entry point for the Vulpine CRM shell. Operational routes are protected by Zitadel and local access status.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">

@@ -107,9 +107,9 @@ enum ValueType {
 }
 
 model User {
-  id          String     @id @default(cuid())
-  privyUserId String?    @unique
-  email       String     @unique
+  id            String     @id @default(cuid())
+  zitadelUserId String?    @unique
+  email         String     @unique
   name        String?
   role        UserRole   @default(USER)
   status      UserStatus @default(PENDING)

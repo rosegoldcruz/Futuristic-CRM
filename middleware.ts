@@ -1,4 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import NextAuth from "next-auth";
+import authConfig from "@/auth.config";
+
+const { auth } = NextAuth(authConfig);
 
 const PUBLIC_ROUTES = new Set([
   "/",
@@ -35,7 +39,7 @@ const PROTECTED_ROUTES = new Set([
   "/admin/users",
 ]);
 
-export function middleware(request: NextRequest) {
+export default auth((request) => {
   const { pathname } = request.nextUrl;
 
   if (
@@ -52,9 +56,7 @@ export function middleware(request: NextRequest) {
   }
 
   if (PROTECTED_ROUTES.has(pathname)) {
-    const hasPrivyToken = Boolean(request.cookies.get("privy-token")?.value);
-
-    if (!hasPrivyToken) {
+    if (!request.auth) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
 
@@ -62,7 +64,7 @@ export function middleware(request: NextRequest) {
   }
 
   return NextResponse.redirect(new URL("/dashboard", request.url));
-}
+});
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],

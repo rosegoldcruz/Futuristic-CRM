@@ -1,30 +1,36 @@
 import type { User, UserRole } from "@prisma/client";
 import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { getPrisma } from "@/lib/prisma";
-import { getPrivySession } from "./privy";
 
 const ADMIN_ROLES: UserRole[] = ["OWNER", "ADMIN"];
 
-export type AppUser = Pick<User, "id" | "email" | "name" | "role" | "status" | "privyUserId">;
+export type AppUser = Pick<
+  User,
+  "id" | "email" | "name" | "role" | "status" | "zitadelUserId"
+>;
+
+const APP_USER_SELECT = {
+  id: true,
+  email: true,
+  name: true,
+  role: true,
+  status: true,
+  zitadelUserId: true,
+} as const;
 
 export async function getCurrentAppUser(): Promise<AppUser | null> {
-  const session = await getPrivySession();
+  const session = await auth();
+  const email = session?.user?.email?.toLowerCase();
 
-  if (!session) {
+  if (!email) {
     return null;
   }
 
   try {
     return await getPrisma().user.findUnique({
-      where: { privyUserId: session.privyUserId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        status: true,
-        privyUserId: true,
-      },
+      where: { email },
+      select: APP_USER_SELECT,
     });
   } catch {
     return null;
@@ -32,9 +38,9 @@ export async function getCurrentAppUser(): Promise<AppUser | null> {
 }
 
 export async function requireActiveUser(requiredRoles?: UserRole[]) {
-  const session = await getPrivySession();
+  const session = await auth();
 
-  if (!session) {
+  if (!session?.user?.email) {
     redirect("/login");
   }
 
@@ -42,15 +48,8 @@ export async function requireActiveUser(requiredRoles?: UserRole[]) {
 
   try {
     user = await getPrisma().user.findUnique({
-      where: { privyUserId: session.privyUserId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        status: true,
-        privyUserId: true,
-      },
+      where: { email: session.user.email.toLowerCase() },
+      select: APP_USER_SELECT,
     });
   } catch {
     redirect("/access-pending");

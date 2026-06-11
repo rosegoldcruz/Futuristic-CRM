@@ -1,7 +1,7 @@
 "use client";
 
-import { AppPrivyProvider } from "@/components/providers/privy-provider";
+import { AppSessionProvider } from "@/components/providers/session-provider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  return <AppPrivyProvider>{children}</AppPrivyProvider>;
+  return <AppSessionProvider>{children}</AppSessionProvider>;
 }
