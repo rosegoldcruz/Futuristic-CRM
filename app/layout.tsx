@@ -22,7 +22,7 @@ export default function RootLayout({
           rel="stylesheet" 
         />
       </head>
-      <body className="h-full bg-bgDarkest text-textPrimary antialiased font-mono scan-lines">
+      <body className="h-full bg-bgDarkest text-textPrimary antialiased font-mono">
         <Providers>{children}</Providers>
       </body>
     </html>
