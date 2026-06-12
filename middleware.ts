@@ -1,20 +1,49 @@
-import { NextRequest, NextResponse } from "next/server";
+import { withAuth } from "next-auth/middleware";
+import { NextResponse } from "next/server";
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+export default withAuth(
+  function middleware(req) {
+    const { pathname } = req.nextUrl;
 
-  if (
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/api") ||
-    pathname === "/favicon.ico" ||
-    pathname.includes(".")
-  ) {
+    // Allow auth API routes, login, logout, access-pending, and home
+    if (
+      pathname.startsWith("/api/auth") ||
+      pathname.startsWith("/login") ||
+      pathname.startsWith("/logout") ||
+      pathname.startsWith("/access-pending") ||
+      pathname === "/"
+    ) {
+      return NextResponse.next();
+    }
+
     return NextResponse.next();
-  }
+  },
+  {
+    callbacks: {
+      authorized: ({ token, req }) => {
+        const { pathname } = req.nextUrl;
 
-  return NextResponse.next();
-}
+        // Public paths — no auth required
+        if (
+          pathname.startsWith("/api/auth") ||
+          pathname.startsWith("/login") ||
+          pathname.startsWith("/logout") ||
+          pathname.startsWith("/access-pending") ||
+          pathname === "/"
+        ) {
+          return true;
+        }
+
+        // All other routes require authentication
+        return !!token;
+      },
+    },
+    pages: {
+      signIn: "/login",
+    },
+  }
+);
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/health).*)"],
 };
