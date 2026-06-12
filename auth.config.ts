@@ -1,15 +1,9 @@
 import type { NextAuthConfig } from "next-auth";
-import Zitadel from "next-auth/providers/zitadel";
+import { getZitadelProviders } from "@/lib/auth/zitadel-env";
 
 export default {
   trustHost: true,
-  providers: [
-    Zitadel({
-      clientId: process.env.ZITADEL_CLIENT_ID,
-      clientSecret: process.env.ZITADEL_CLIENT_SECRET,
-      issuer: process.env.ZITADEL_ISSUER,
-    }),
-  ],
+  providers: getZitadelProviders(),
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,
