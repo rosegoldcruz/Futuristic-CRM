@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 export default function AccessPendingPage() {
   return (
@@ -8,17 +9,19 @@ export default function AccessPendingPage() {
           // Access
         </p>
         <h1 className="font-display text-3xl font-bold uppercase tracking-wide">
-          Access Pending
+          Access Checks Disabled
         </h1>
         <p className="text-sm leading-6 text-textSecondary">
-          Your account is not active for the Vulpine Command Center yet, or it does not have the required role for the requested route.
+          Auth is turned off right now. You can browse the full CRM shell from
+          the dashboard.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link
-            href="/login"
-            className="inline-flex border border-cyber-cyan bg-cyber-cyan px-4 py-2 text-xs font-bold uppercase tracking-wider text-bgDarkest shadow-cyberMd transition hover:bg-transparent hover:text-cyber-cyan"
+            href="/dashboard"
+            className="inline-flex items-center gap-2 border border-cyber-cyan bg-cyber-cyan px-4 py-2 text-xs font-bold uppercase tracking-wider text-bgDarkest shadow-cyberMd transition hover:bg-transparent hover:text-cyber-cyan"
           >
-            Sign in
+            Go to Dashboard
+            <ArrowRight className="h-4 w-4" />
           </Link>
           <Link
             href="/"

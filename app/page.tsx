@@ -15,22 +15,23 @@ export default function HomePage() {
               Vulpine Command Center
             </h1>
             <p className="max-w-2xl text-base leading-7 text-textSecondary">
-              Public entry point for the Vulpine CRM shell. Operational routes are protected by Zitadel and local access status.
+              Public entry point for the Vulpine CRM shell. Auth is temporarily
+              disabled so you can browse the build.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Link
-              href="/login"
+              href="/dashboard"
               className="inline-flex items-center gap-2 border border-cyber-cyan bg-cyber-cyan px-4 py-2 text-xs font-bold uppercase tracking-wider text-bgDarkest shadow-cyberMd transition hover:bg-transparent hover:text-cyber-cyan"
             >
-              Sign in
+              Enter Dashboard
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              href="/access-pending"
+              href="/login"
               className="inline-flex items-center gap-2 border border-borderSubtle bg-surface px-4 py-2 text-xs font-bold uppercase tracking-wider text-textSecondary transition hover:border-cyber-cyan hover:text-cyber-cyan"
             >
-              Access status
+              Login page
             </Link>
           </div>
         </div>

@@ -8,7 +8,7 @@ export default function SettingsPage() {
       description="Global application settings, separate from Email Engine settings."
       items={[
         "App config",
-        "Zitadel config",
+        "Access config",
         "Database status",
         "Send layer provider",
         "N8N endpoint and API key",
