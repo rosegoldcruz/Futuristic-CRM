@@ -335,3 +335,192 @@ model AutomationWorkflow {
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
 }
+
+model EmailCompanyOp {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  website     String?
+  phone       String?
+  industry    String?
+  companyType String?          @map("company_type")
+  addressLine1 String?         @map("address_line1")
+  addressLine2 String?         @map("address_line2")
+  city        String?
+  state       String?
+  postalCode  String?          @map("postal_code")
+  country     String?          @default("US")
+  notes       String?
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  contacts    EmailContactOp[]
+
+  @@map("email_companies")
+}
+
+model EmailContactOp {
+  id          String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId   String?                    @map("company_id") @db.Uuid
+  firstName   String?                    @map("first_name")
+  lastName    String?                    @map("last_name")
+  fullName    String?                    @map("full_name")
+  email       String                     @unique
+  phone       String?
+  title       String?
+  source      String?
+  status      String                     @default("active")
+  notes       String?
+  createdAt   DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime                   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  company     EmailCompanyOp?            @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  listMembers EmailListMemberOp[]
+  recipients  EmailCampaignRecipientOp[]
+  events      EmailEventOp[]
+  inbound     EmailInboundMessageOp[]
+
+  @@index([companyId])
+  @@index([status])
+  @@map("email_contacts")
+}
+
+model EmailListOp {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  description String?
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  members     EmailListMemberOp[]
+  campaigns   EmailCampaignOp[]
+
+  @@map("email_lists")
+}
+
+model EmailListMemberOp {
+  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  listId    String         @map("list_id") @db.Uuid
+  contactId String         @map("contact_id") @db.Uuid
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  list      EmailListOp    @relation(fields: [listId], references: [id], onDelete: Cascade)
+  contact   EmailContactOp @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, contactId])
+  @@index([contactId])
+  @@map("email_list_members")
+}
+
+model EmailTemplateOp {
+  id        String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  subject   String
+  bodyHtml  String?           @map("body_html")
+  bodyText  String?           @map("body_text")
+  body      String?
+  category  String?
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  campaigns EmailCampaignOp[]
+
+  @@map("email_templates")
+}
+
+model EmailCampaignOp {
+  id          String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  templateId  String?                    @map("template_id") @db.Uuid
+  listId      String?                    @map("list_id") @db.Uuid
+  status      String                     @default("draft")
+  scheduledAt DateTime?                  @map("scheduled_at") @db.Timestamptz(6)
+  createdAt   DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime                   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  template    EmailTemplateOp?           @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  list        EmailListOp?               @relation(fields: [listId], references: [id], onDelete: SetNull)
+  recipients  EmailCampaignRecipientOp[]
+  events      EmailEventOp[]
+
+  @@index([templateId])
+  @@index([listId])
+  @@index([status])
+  @@map("email_campaigns")
+}
+
+model EmailCampaignRecipientOp {
+  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId          String          @map("campaign_id") @db.Uuid
+  contactId           String          @map("contact_id") @db.Uuid
+  status              String          @default("draft_ready")
+  personalizedSubject String?         @map("personalized_subject")
+  personalizedBody    String?         @map("personalized_body")
+  personalizedHtml    String?         @map("personalized_html")
+  personalizedText    String?         @map("personalized_text")
+  sentAt              DateTime?       @map("sent_at") @db.Timestamptz(6)
+  repliedAt           DateTime?       @map("replied_at") @db.Timestamptz(6)
+  lastError           String?         @map("last_error")
+  providerMessageId   String?         @map("provider_message_id")
+  nextFollowUpAt      DateTime?       @map("next_follow_up_at") @db.Timestamptz(6)
+  notes               String?
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  campaign            EmailCampaignOp @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact             EmailContactOp  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  events              EmailEventOp[]
+
+  @@unique([campaignId, contactId])
+  @@index([contactId])
+  @@index([status])
+  @@map("email_campaign_recipients")
+}
+
+model EmailEventOp {
+  id          String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId  String?                   @map("campaign_id") @db.Uuid
+  recipientId String?                   @map("recipient_id") @db.Uuid
+  contactId   String?                   @map("contact_id") @db.Uuid
+  eventType   String                    @map("event_type")
+  metadata    Json                      @default("{}")
+  createdAt   DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  campaign    EmailCampaignOp?          @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  recipient   EmailCampaignRecipientOp? @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  contact     EmailContactOp?           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([recipientId])
+  @@index([contactId])
+  @@index([eventType])
+  @@map("email_events")
+}
+
+model EmailSuppressionOp {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email     String   @unique
+  reason    String
+  source    String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("email_suppressions")
+}
+
+model EmailInboundMessageOp {
+  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contactId  String?         @map("contact_id") @db.Uuid
+  fromEmail  String          @map("from_email")
+  subject    String?
+  body       String?
+  receivedAt DateTime?       @map("received_at") @db.Timestamptz(6)
+  rawPayload Json?           @map("raw_payload")
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  contact    EmailContactOp? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([contactId])
+  @@map("email_inbound_messages")
+}
+
+model EmailSendSettingsOp {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dailyLimit          Int      @default(25) @map("daily_limit")
+  batchSize           Int      @default(5) @map("batch_size")
+  minSecondsBetweenSends Int   @default(60) @map("min_seconds_between_sends")
+  enabled             Boolean  @default(false)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("email_send_settings")
+}

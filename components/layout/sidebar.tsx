@@ -55,12 +55,26 @@ const EMAIL_ENGINE_ITEMS: NavItem[] = [
   { label: "Settings", href: "/email-engine/settings", icon: Settings },
 ];
 
+const MAIL_ITEMS: NavItem[] = [
+  { label: "Dashboard", href: "/mail", icon: LayoutDashboard },
+  { label: "Send", href: "/mail/send", icon: Send },
+  { label: "Contacts", href: "/mail/contacts", icon: CircleUserRound },
+  { label: "Companies", href: "/mail/companies", icon: Building2 },
+  { label: "Lists", href: "/mail/lists", icon: Layers3 },
+  { label: "Templates", href: "/mail/templates", icon: FileText },
+  { label: "Campaigns", href: "/mail/campaigns", icon: Send },
+  { label: "Events", href: "/mail/events", icon: Activity },
+  { label: "Settings", href: "/mail/settings", icon: Settings },
+  { label: "Suppressions", href: "/mail/suppressions", icon: ShieldCheck },
+];
+
 const NAV_SECTIONS: NavSection[] = [
   {
     label: "Core",
     items: [
       { label: "Dashboard", href: "/dashboard", icon: Home },
       { label: "Email Engine", href: "/email-engine", icon: Send, children: EMAIL_ENGINE_ITEMS },
+      { label: "Mail Ops", href: "/mail", icon: Send, children: MAIL_ITEMS },
     ],
   },
   {
@@ -117,6 +131,7 @@ export function Sidebar({ role }: { role: UserRole }) {
   const [collapsed, setCollapsed] = useState(false);
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({
     "Email Engine": true,
+    "Mail Ops": true,
     Revenue: true,
     Integrations: true,
   });
@@ -141,7 +156,8 @@ export function Sidebar({ role }: { role: UserRole }) {
     pathname === href ||
     Boolean(children?.some((child) => pathname === child.href || pathname.startsWith(`${child.href}/`))) ||
     (href === "/email-engine" && pathname.startsWith("/email-engine/")) ||
-    (href !== "/dashboard" && href !== "/email-engine" && pathname.startsWith(`${href}/`));
+    (href === "/mail" && pathname.startsWith("/mail/")) ||
+    (href !== "/dashboard" && href !== "/email-engine" && href !== "/mail" && pathname.startsWith(`${href}/`));
 
   return (
     <aside

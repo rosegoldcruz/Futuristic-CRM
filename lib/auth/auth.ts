@@ -32,6 +32,8 @@ export function getAuthOptions(): NextAuthOptions {
             type: "oauth",
             wellKnown: `${process.env.ZITADEL_ISSUER}/.well-known/openid-configuration`,
             clientId: process.env.ZITADEL_CLIENT_ID!,
+            idToken: true,
+            checks: ["pkce", "state"],
             client: {
               token_endpoint_auth_method: "none",
             },
@@ -54,13 +56,26 @@ export function getAuthOptions(): NextAuthOptions {
     callbacks: {
       async signIn({ user, account, profile }) {
         const email = user.email?.toLowerCase();
-        if (!email) return false;
+        if (!email) {
+          console.error("[auth] ZITADEL sign-in denied: missing email claim", {
+            provider: account?.provider,
+            profileSub: typeof profile?.sub === "string" ? profile.sub : null,
+            profileEmail: (profile as any)?.email ?? null,
+          });
+          return false;
+        }
 
         const zitadelUserId =
           account?.providerAccountId ??
           (typeof profile?.sub === "string" ? profile.sub : undefined);
 
-        if (!zitadelUserId) return false;
+        if (!zitadelUserId) {
+          console.error("[auth] ZITADEL sign-in denied: missing subject claim", {
+            email,
+            provider: account?.provider,
+          });
+          return false;
+        }
 
         try {
           const prisma = getPrisma();
@@ -70,6 +85,10 @@ export function getAuthOptions(): NextAuthOptions {
           });
 
           if (existingByZitadelId && existingByZitadelId.email !== email) {
+            console.error("[auth] ZITADEL sign-in denied: user id already linked", {
+              email,
+              linkedEmail: existingByZitadelId.email,
+            });
             return false;
           }
 
@@ -94,7 +113,8 @@ export function getAuthOptions(): NextAuthOptions {
           });
 
           return true;
-        } catch {
+        } catch (error) {
+          console.error("[auth] ZITADEL sign-in denied: user upsert failed", error);
           return false;
         }
       },
