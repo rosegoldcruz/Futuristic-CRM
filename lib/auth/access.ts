@@ -23,14 +23,15 @@ const APP_USER_SELECT = {
 export async function getCurrentAppUser(): Promise<AppUser | null> {
   const session = await getServerSession(getAuthOptions());
   const email = session?.user?.email?.toLowerCase();
+  const zitadelUserId = session?.user?.id;
 
-  if (!email) {
+  if (!email && !zitadelUserId) {
     return null;
   }
 
   try {
     return await getPrisma().user.findUnique({
-      where: { email },
+      where: email ? { email } : { zitadelUserId },
       select: APP_USER_SELECT,
     });
   } catch {
@@ -53,6 +54,20 @@ export async function requireActiveUser(
 
   if (requiredRoles && requiredRoles.length > 0 && !requiredRoles.includes(user.role)) {
     redirect("/access-pending");
+  }
+
+  return user;
+}
+
+export async function getCurrentUserOrThrow(): Promise<AppUser> {
+  const user = await getCurrentAppUser();
+
+  if (!user) {
+    throw new Error("Authentication required");
+  }
+
+  if (user.status !== "ACTIVE") {
+    throw new Error("Active user required");
   }
 
   return user;

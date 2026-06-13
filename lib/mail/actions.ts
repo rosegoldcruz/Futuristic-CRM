@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireActiveUser } from "@/lib/auth/access";
+import { writeAuditEvent } from "@/lib/audit";
 import { getPrisma } from "@/lib/prisma";
 import { ensureSendSettings } from "@/lib/mail/data";
 import { normalizeEmail, renderTemplate } from "@/lib/mail/render-template";
@@ -44,29 +45,32 @@ async function logEvent(input: {
 }
 
 export async function createCompany(formData: FormData) {
-  await requireActiveUser();
+  const actor = await requireActiveUser();
   await getPrisma().$executeRaw`
     INSERT INTO email_companies (name, website, phone, industry, company_type, address_line1, address_line2, city, state, postal_code, country, notes)
     VALUES (${required(formData, "name")}, ${value(formData, "website")}, ${value(formData, "phone")}, ${value(formData, "industry")},
       ${value(formData, "company_type")}, ${value(formData, "address_line1")}, ${value(formData, "address_line2")},
       ${value(formData, "city")}, ${value(formData, "state")}, ${value(formData, "postal_code")}, ${value(formData, "country") ?? "US"}, ${value(formData, "notes")})
   `;
+  await writeAuditEvent({ actor, entityType: "email_company", action: "create", metadata: { name: required(formData, "name") } });
   refreshMail();
 }
 
 export async function updateCompany(formData: FormData) {
-  await requireActiveUser();
+  const actor = await requireActiveUser();
+  const id = required(formData, "id");
   await getPrisma().$executeRaw`
     UPDATE email_companies
     SET name = ${required(formData, "name")}, website = ${value(formData, "website")}, phone = ${value(formData, "phone")},
       industry = ${value(formData, "industry")}, company_type = ${value(formData, "company_type")}, notes = ${value(formData, "notes")}, updated_at = now()
-    WHERE id = ${required(formData, "id")}::uuid
+    WHERE id = ${id}::uuid
   `;
+  await writeAuditEvent({ actor, entityType: "email_company", entityId: id, action: "update" });
   refreshMail();
 }
 
 export async function createContact(formData: FormData) {
-  await requireActiveUser();
+  const actor = await requireActiveUser();
   const email = normalizeEmail(formData.get("email"));
   if (!email) throw new Error("email is required");
   const companyId = value(formData, "company_id");
@@ -87,25 +91,30 @@ export async function createContact(formData: FormData) {
       notes = EXCLUDED.notes,
       updated_at = now()
   `;
+  await writeAuditEvent({ actor, entityType: "email_contact", action: "upsert", metadata: { email } });
   refreshMail();
 }
 
 export async function updateContact(formData: FormData) {
-  await requireActiveUser();
+  const actor = await requireActiveUser();
+  const id = required(formData, "id");
   await getPrisma().$executeRaw`
     UPDATE email_contacts
     SET company_id = ${value(formData, "company_id")}::uuid, first_name = ${value(formData, "first_name")},
       last_name = ${value(formData, "last_name")}, full_name = ${value(formData, "full_name")}, phone = ${value(formData, "phone")},
       title = ${value(formData, "title")}, source = ${value(formData, "source")}, status = ${value(formData, "status") ?? "active"},
       notes = ${value(formData, "notes")}, updated_at = now()
-    WHERE id = ${required(formData, "id")}::uuid
+    WHERE id = ${id}::uuid
   `;
+  await writeAuditEvent({ actor, entityType: "email_contact", entityId: id, action: "update" });
   refreshMail();
 }
 
 export async function archiveContact(formData: FormData) {
-  await requireActiveUser();
-  await getPrisma().$executeRaw`UPDATE email_contacts SET status = 'archived', updated_at = now() WHERE id = ${required(formData, "id")}::uuid`;
+  const actor = await requireActiveUser();
+  const id = required(formData, "id");
+  await getPrisma().$executeRaw`UPDATE email_contacts SET status = 'archived', updated_at = now() WHERE id = ${id}::uuid`;
+  await writeAuditEvent({ actor, entityType: "email_contact", entityId: id, action: "archive" });
   refreshMail();
 }
 
@@ -133,7 +142,7 @@ function parseCsvLine(line: string) {
 }
 
 export async function importContactsCsv(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireActiveUser();
+  const actor = await requireActiveUser();
   const file = formData.get("csv");
   if (!(file instanceof File)) return { ok: false, message: "CSV file is required" };
   const text = await file.text();
@@ -194,59 +203,71 @@ export async function importContactsCsv(_prev: ActionState, formData: FormData):
     imported += 1;
   }
   refreshMail();
+  await writeAuditEvent({ actor, entityType: "email_contact", action: "csv_import", metadata: { imported, skipped, errors: errors.length } });
   return { ok: errors.length === 0, message: `Imported ${imported}. Skipped ${skipped}. Errors ${errors.length}${errors.length ? `: ${errors.slice(0, 3).join("; ")}` : ""}` };
 }
 
 export async function createList(formData: FormData) {
-  await requireActiveUser();
+  const actor = await requireActiveUser();
   await getPrisma().$executeRaw`INSERT INTO email_lists (name, description) VALUES (${required(formData, "name")}, ${value(formData, "description")})`;
+  await writeAuditEvent({ actor, entityType: "email_list", action: "create", metadata: { name: required(formData, "name") } });
   refreshMail();
 }
 
 export async function addContactToList(formData: FormData) {
-  await requireActiveUser();
+  const actor = await requireActiveUser();
+  const listId = required(formData, "list_id");
+  const contactId = required(formData, "contact_id");
   await getPrisma().$executeRaw`
     INSERT INTO email_list_members (list_id, contact_id)
-    VALUES (${required(formData, "list_id")}::uuid, ${required(formData, "contact_id")}::uuid)
+    VALUES (${listId}::uuid, ${contactId}::uuid)
     ON CONFLICT (list_id, contact_id) DO NOTHING
   `;
+  await writeAuditEvent({ actor, entityType: "email_list", entityId: listId, action: "add_contact", metadata: { contactId } });
   refreshMail();
 }
 
 export async function removeContactFromList(formData: FormData) {
-  await requireActiveUser();
-  await getPrisma().$executeRaw`DELETE FROM email_list_members WHERE list_id = ${required(formData, "list_id")}::uuid AND contact_id = ${required(formData, "contact_id")}::uuid`;
+  const actor = await requireActiveUser();
+  const listId = required(formData, "list_id");
+  const contactId = required(formData, "contact_id");
+  await getPrisma().$executeRaw`DELETE FROM email_list_members WHERE list_id = ${listId}::uuid AND contact_id = ${contactId}::uuid`;
+  await writeAuditEvent({ actor, entityType: "email_list", entityId: listId, action: "remove_contact", metadata: { contactId } });
   refreshMail();
 }
 
 export async function createTemplate(formData: FormData) {
-  await requireActiveUser();
+  const actor = await requireActiveUser();
   await getPrisma().$executeRaw`
     INSERT INTO email_templates (name, subject, body, body_html, body_text, category)
     VALUES (${required(formData, "name")}, ${required(formData, "subject")}, ${value(formData, "body_text")},
       ${value(formData, "body_html")}, ${value(formData, "body_text")}, ${value(formData, "category")})
   `;
+  await writeAuditEvent({ actor, entityType: "email_template", action: "create", metadata: { name: required(formData, "name") } });
   refreshMail();
 }
 
 export async function updateTemplate(formData: FormData) {
-  await requireActiveUser();
+  const actor = await requireActiveUser();
+  const id = required(formData, "id");
   await getPrisma().$executeRaw`
     UPDATE email_templates
     SET name = ${required(formData, "name")}, subject = ${required(formData, "subject")}, body = ${value(formData, "body_text")},
       body_html = ${value(formData, "body_html")}, body_text = ${value(formData, "body_text")}, category = ${value(formData, "category")}, updated_at = now()
-    WHERE id = ${required(formData, "id")}::uuid
+    WHERE id = ${id}::uuid
   `;
+  await writeAuditEvent({ actor, entityType: "email_template", entityId: id, action: "update" });
   refreshMail();
 }
 
 export async function createCampaign(formData: FormData) {
-  await requireActiveUser();
+  const actor = await requireActiveUser();
   const [campaign] = await getPrisma().$queryRaw<Array<{ id: string }>>`
     INSERT INTO email_campaigns (name, template_id, list_id, status)
     VALUES (${required(formData, "name")}, ${value(formData, "template_id")}::uuid, ${value(formData, "list_id")}::uuid, ${value(formData, "status") ?? "draft"})
     RETURNING id::text
   `;
+  await writeAuditEvent({ actor, entityType: "email_campaign", entityId: campaign.id, action: "create", metadata: { name: required(formData, "name") } });
   refreshMail();
   redirect(`/mail/campaigns/${campaign.id}`);
 }
@@ -266,7 +287,7 @@ async function loadCampaign(campaignId: string) {
 }
 
 export async function generateCampaignRecipients(formData: FormData) {
-  await requireActiveUser();
+  const actor = await requireActiveUser();
   const campaignId = required(formData, "campaign_id");
   const campaign = await loadCampaign(campaignId);
   if (!campaign.list_id || !campaign.template_id) throw new Error("Campaign requires a list and template");
@@ -308,6 +329,7 @@ export async function generateCampaignRecipients(formData: FormData) {
     await logEvent({ campaignId, recipientId: recipient.id, contactId: contact.id, eventType: "draft_generated" });
   }
   await getPrisma().$executeRaw`UPDATE email_campaigns SET status = 'ready', updated_at = now() WHERE id = ${campaignId}::uuid`;
+  await writeAuditEvent({ actor, entityType: "email_campaign", entityId: campaignId, action: "generate_recipients", metadata: { count: contacts.length } });
   refreshMail();
 }
 
@@ -318,7 +340,7 @@ async function canSendTo(email: string, contactStatus?: string | null) {
 }
 
 export async function sendSingleEmail(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireActiveUser();
+  const actor = await requireActiveUser();
   const settings = await ensureSendSettings();
   if (!settings.enabled) return { ok: false, message: "Sending disabled in /mail/settings" };
   const to = normalizeEmail(formData.get("to"));
@@ -342,6 +364,7 @@ export async function sendSingleEmail(_prev: ActionState, formData: FormData): P
       `;
     }
     await logEvent({ campaignId, recipientId, contactId, eventType: "sent", metadata: { messageId: result.messageId, response: result.response } });
+    await writeAuditEvent({ actor, entityType: "email_send", entityId: recipientId, action: "sent", metadata: { to, campaignId } });
     refreshMail();
     return { ok: true, message: `Sent${result.messageId ? `: ${result.messageId}` : ""}` };
   }
@@ -353,12 +376,13 @@ export async function sendSingleEmail(_prev: ActionState, formData: FormData): P
     `;
   }
   await logEvent({ campaignId, recipientId, contactId, eventType: "send_failed", metadata: { error: result.error } });
+  await writeAuditEvent({ actor, entityType: "email_send", entityId: recipientId, action: "send_failed", metadata: { to, campaignId, error: result.error } });
   refreshMail();
   return { ok: false, message: result.error ?? "Send failed" };
 }
 
 export async function sendCampaignBatch(formData: FormData) {
-  await requireActiveUser();
+  const actor = await requireActiveUser();
   const campaignId = required(formData, "campaign_id");
   const settings = await ensureSendSettings();
   if (!settings.enabled) throw new Error("Sending disabled in /mail/settings");
@@ -414,11 +438,12 @@ export async function sendCampaignBatch(formData: FormData) {
       await logEvent({ campaignId, recipientId: recipient.id, contactId: recipient.contact_id, eventType: "send_failed", metadata: { error: result.error } });
     }
   }
+  await writeAuditEvent({ actor, entityType: "email_campaign", entityId: campaignId, action: "send_batch", metadata: { sent, failed, suppressed } });
   refreshMail();
 }
 
 export async function updateRecipientStatus(formData: FormData) {
-  await requireActiveUser();
+  const actor = await requireActiveUser();
   const status = required(formData, "status");
   const id = required(formData, "id");
   const updates =
@@ -432,11 +457,12 @@ export async function updateRecipientStatus(formData: FormData) {
     SELECT campaign_id::text, contact_id::text FROM email_campaign_recipients WHERE id = ${id}::uuid
   `;
   await logEvent({ campaignId: recipient?.campaign_id, recipientId: id, contactId: recipient?.contact_id, eventType: status === "replied" ? "replied" : "status_changed", metadata: { status } });
+  await writeAuditEvent({ actor, entityType: "email_recipient", entityId: id, action: "status_changed", metadata: { status } });
   refreshMail();
 }
 
 export async function addRecipientNote(formData: FormData) {
-  await requireActiveUser();
+  const actor = await requireActiveUser();
   const id = required(formData, "id");
   const note = required(formData, "note");
   await getPrisma().$executeRaw`UPDATE email_campaign_recipients SET notes = concat_ws(E'\n', notes, ${note}), updated_at = now() WHERE id = ${id}::uuid`;
@@ -444,11 +470,12 @@ export async function addRecipientNote(formData: FormData) {
     SELECT campaign_id::text, contact_id::text FROM email_campaign_recipients WHERE id = ${id}::uuid
   `;
   await logEvent({ campaignId: recipient?.campaign_id, recipientId: id, contactId: recipient?.contact_id, eventType: "note_added", metadata: { note } });
+  await writeAuditEvent({ actor, entityType: "email_recipient", entityId: id, action: "note_added" });
   refreshMail();
 }
 
 export async function addSuppression(formData: FormData) {
-  await requireActiveUser();
+  const actor = await requireActiveUser();
   const email = normalizeEmail(formData.get("email"));
   if (!email) throw new Error("email is required");
   const reason = required(formData, "reason");
@@ -467,17 +494,20 @@ export async function addSuppression(formData: FormData) {
     updated_at = now()
     WHERE email = ${email}
   `;
+  await writeAuditEvent({ actor, entityType: "email_suppression", action: "upsert", metadata: { email, reason } });
   refreshMail();
 }
 
 export async function removeSuppression(formData: FormData) {
-  await requireActiveUser();
-  await getPrisma().$executeRaw`DELETE FROM email_suppressions WHERE id = ${required(formData, "id")}::uuid`;
+  const actor = await requireActiveUser();
+  const id = required(formData, "id");
+  await getPrisma().$executeRaw`DELETE FROM email_suppressions WHERE id = ${id}::uuid`;
+  await writeAuditEvent({ actor, entityType: "email_suppression", entityId: id, action: "remove" });
   refreshMail();
 }
 
 export async function updateSendSettings(formData: FormData) {
-  await requireActiveUser();
+  const actor = await requireActiveUser();
   const settings = await ensureSendSettings();
   await getPrisma().$executeRaw`
     UPDATE email_send_settings
@@ -488,5 +518,6 @@ export async function updateSendSettings(formData: FormData) {
       updated_at = now()
     WHERE id = ${settings.id}::uuid
   `;
+  await writeAuditEvent({ actor, entityType: "email_send_settings", entityId: settings.id, action: "update" });
   refreshMail();
 }

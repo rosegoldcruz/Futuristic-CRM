@@ -1,7 +1,7 @@
 "use client";
 
 import type { UserRole } from "@prisma/client";
-import { ShieldCheck, Zap } from "lucide-react";
+import { LogOut, ShieldCheck, Zap } from "lucide-react";
 
 export function TopBar({
   user,
@@ -38,6 +38,13 @@ export function TopBar({
             </div>
           </div>
         </div>
+        <a
+          href="/api/auth/logout"
+          className="inline-flex items-center gap-2 border border-borderSubtle bg-surface px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-textSecondary transition hover:border-cyber-magenta hover:text-cyber-magenta"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          Sign out
+        </a>
       </div>
     </header>
   );

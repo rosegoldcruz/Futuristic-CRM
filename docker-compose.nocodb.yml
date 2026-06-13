@@ -1,0 +1,17 @@
+services:
+  nocodb:
+    image: nocodb/nocodb:latest
+    container_name: vulpine-nocodb
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NC_DB: ${NOCODB_DATABASE_URL}
+      NC_PUBLIC_URL: ${NOCODB_PUBLIC_URL:-}
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - nocodb-data:/usr/app/data
+
+volumes:
+  nocodb-data:

@@ -1,6 +1,5 @@
 "use client";
 
-import type { UserRole } from "@prisma/client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -15,18 +14,15 @@ import {
   FileText,
   FolderKanban,
   Gavel,
-  Globe2,
   Home,
-  Import,
   Layers3,
   LayoutDashboard,
   Send,
-  ServerCog,
   Settings,
   ShieldCheck,
-  Users,
+  Zap,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { ComponentType } from "react";
 
 type NavItem = {
@@ -75,6 +71,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Dashboard", href: "/dashboard", icon: Home },
       { label: "Email Engine", href: "/email-engine", icon: Send, children: EMAIL_ENGINE_ITEMS },
       { label: "Mail Ops", href: "/mail", icon: Send, children: MAIL_ITEMS },
+      { label: "Automations", href: "/automations", icon: Zap },
     ],
   },
   {
@@ -100,57 +97,16 @@ const NAV_SECTIONS: NavSection[] = [
       },
     ],
   },
-  {
-    label: "Integrations",
-    items: [
-      {
-        label: "Integrations",
-        href: "/planhub",
-        icon: ServerCog,
-        children: [
-          { label: "PlanHub", href: "/planhub", icon: Globe2 },
-          { label: "ZoomInfo", href: "/zoominfo", icon: Users },
-          { label: "BuildingConnected", href: "/buildingconnected", icon: ServerCog },
-          { label: "Import Center", href: "/import-center", icon: Import },
-        ],
-      },
-    ],
-  },
-  {
-    label: "Operations",
-    items: [
-      { label: "Activity Log", href: "/activity-log", icon: Activity },
-      { label: "Compliance Center", href: "/compliance-center", icon: ShieldCheck },
-      { label: "Settings", href: "/settings", icon: Settings },
-    ],
-  },
 ];
 
-export function Sidebar({ role }: { role: UserRole }) {
+export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({
     "Email Engine": true,
     "Mail Ops": true,
     Revenue: true,
-    Integrations: true,
   });
-
-  const sections = useMemo(() => {
-    const isAdmin = role === "OWNER" || role === "ADMIN";
-
-    const sections: NavSection[] = isAdmin
-      ? [
-          ...NAV_SECTIONS,
-          {
-            label: "Admin",
-            items: [{ label: "Admin Users", href: "/admin/users", icon: Users }],
-          },
-        ]
-      : NAV_SECTIONS;
-
-    return sections;
-  }, [role]);
 
   const isActive = (href: string, children?: NavItem[]) =>
     pathname === href ||
@@ -192,7 +148,7 @@ export function Sidebar({ role }: { role: UserRole }) {
       </div>
 
       <nav className="flex-1 space-y-5 overflow-y-auto scrollbar-thin px-3 py-5 text-sm">
-        {sections.map((section) => (
+        {NAV_SECTIONS.map((section) => (
           <div key={section.label} className="space-y-2">
             <div
               className={[

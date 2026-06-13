@@ -339,9 +339,12 @@ model AutomationWorkflow {
 model EmailCompanyOp {
   id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String
+  domain      String?
   website     String?
   phone       String?
   industry    String?
+  source      String?
+  status      String           @default("active")
   companyType String?          @map("company_type")
   addressLine1 String?         @map("address_line1")
   addressLine2 String?         @map("address_line2")
@@ -354,6 +357,8 @@ model EmailCompanyOp {
   updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   contacts    EmailContactOp[]
 
+  @@index([domain])
+  @@index([name])
   @@map("email_companies")
 }
 
@@ -368,6 +373,7 @@ model EmailContactOp {
   title       String?
   source      String?
   status      String                     @default("active")
+  consentStatus String                   @default("unknown") @map("consent_status")
   notes       String?
   createdAt   DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime                   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -378,14 +384,17 @@ model EmailContactOp {
   inbound     EmailInboundMessageOp[]
 
   @@index([companyId])
+  @@index([email])
   @@index([status])
   @@map("email_contacts")
 }
 
 model EmailListOp {
   id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String
+  name        String              @unique
   description String?
+  type        String              @default("static")
+  status      String              @default("active")
   createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   members     EmailListMemberOp[]
@@ -411,10 +420,12 @@ model EmailTemplateOp {
   id        String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name      String
   subject   String
+  preheader String?
   bodyHtml  String?           @map("body_html")
   bodyText  String?           @map("body_text")
   body      String?
   category  String?
+  status    String            @default("draft")
   createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   campaigns EmailCampaignOp[]
@@ -427,8 +438,11 @@ model EmailCampaignOp {
   name        String
   templateId  String?                    @map("template_id") @db.Uuid
   listId      String?                    @map("list_id") @db.Uuid
+  subjectOverride String?                @map("subject_override")
   status      String                     @default("draft")
   scheduledAt DateTime?                  @map("scheduled_at") @db.Timestamptz(6)
+  approvedAt  DateTime?                  @map("approved_at") @db.Timestamptz(6)
+  sentAt      DateTime?                  @map("sent_at") @db.Timestamptz(6)
   createdAt   DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime                   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   template    EmailTemplateOp?           @relation(fields: [templateId], references: [id], onDelete: SetNull)
@@ -472,6 +486,7 @@ model EmailCampaignRecipientOp {
 model EmailEventOp {
   id          String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   campaignId  String?                   @map("campaign_id") @db.Uuid
+  queueId     String?                   @map("queue_id") @db.Uuid
   recipientId String?                   @map("recipient_id") @db.Uuid
   contactId   String?                   @map("contact_id") @db.Uuid
   eventType   String                    @map("event_type")
@@ -482,10 +497,56 @@ model EmailEventOp {
   contact     EmailContactOp?           @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@index([campaignId])
+  @@index([queueId])
   @@index([recipientId])
   @@index([contactId])
   @@index([eventType])
   @@map("email_events")
+}
+
+model EmailQueueOp {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId        String?   @map("campaign_id") @db.Uuid
+  contactId         String?   @map("contact_id") @db.Uuid
+  recipientId       String?   @map("recipient_id") @db.Uuid
+  recipientEmail    String    @map("recipient_email")
+  subject           String
+  bodyHtml          String    @map("body_html")
+  bodyText          String?   @map("body_text")
+  status            String    @default("queued")
+  provider          String?
+  providerMessageId String?   @map("provider_message_id")
+  attemptCount      Int       @default(0) @map("attempt_count")
+  maxAttempts       Int       @default(3) @map("max_attempts")
+  nextAttemptAt     DateTime? @map("next_attempt_at") @db.Timestamptz(6)
+  lastError         String?   @map("last_error")
+  sentAt            DateTime? @map("sent_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([campaignId])
+  @@index([contactId])
+  @@index([recipientId])
+  @@index([status])
+  @@index([nextAttemptAt])
+  @@map("email_queue")
+}
+
+model EmailProviderAccountOp {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  provider     String
+  fromEmail    String   @map("from_email")
+  fromName     String?  @map("from_name")
+  replyToEmail String?  @map("reply_to_email")
+  status       String   @default("inactive")
+  config       Json?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([provider])
+  @@index([status])
+  @@map("email_provider_accounts")
 }
 
 model EmailSuppressionOp {
@@ -523,4 +584,92 @@ model EmailSendSettingsOp {
   updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("email_send_settings")
+}
+
+model FileFolderOp {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parentId  String?  @map("parent_id") @db.Uuid
+  name      String
+  path      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([parentId, name])
+  @@index([parentId])
+  @@map("file_folders")
+}
+
+model FileRecordOp {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  folderId      String?  @map("folder_id") @db.Uuid
+  ownerType     String?  @map("owner_type")
+  ownerId       String?  @map("owner_id") @db.Uuid
+  originalName  String   @map("original_name")
+  storageName   String   @map("storage_name")
+  mimeType      String?  @map("mime_type")
+  sizeBytes     BigInt   @default(0) @map("size_bytes")
+  storageDriver String   @map("storage_driver")
+  storagePath   String   @map("storage_path")
+  status        String   @default("active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([folderId])
+  @@index([ownerType, ownerId])
+  @@index([status])
+  @@map("files")
+}
+
+model FileEventOp {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fileId    String?  @map("file_id") @db.Uuid
+  eventType String   @map("event_type")
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([fileId])
+  @@index([eventType])
+  @@map("file_events")
+}
+
+model AutomationRunOp {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  source    String
+  action    String
+  status    String   @default("pending")
+  input     Json?
+  output    Json?
+  error     String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([source])
+  @@index([action])
+  @@index([status])
+  @@map("automation_runs")
+}
+
+model AuditEventOp {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorUserId String?  @map("actor_user_id")
+  actorEmail  String?  @map("actor_email")
+  entityType  String   @map("entity_type")
+  entityId    String?  @map("entity_id")
+  action      String
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_events")
+}
+
+model AppSettingOp {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("app_settings")
 }
