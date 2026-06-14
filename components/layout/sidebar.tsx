@@ -71,6 +71,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Dashboard", href: "/dashboard", icon: Home },
       { label: "Leads", href: "/leads", icon: ListChecks },
+      { label: "Contacts", href: "/contacts", icon: CircleUserRound },
       { label: "Email Engine", href: "/email-engine", icon: Send, children: EMAIL_ENGINE_ITEMS },
       { label: "Mail Ops", href: "/mail", icon: Send, children: MAIL_ITEMS },
       { label: "Automations", href: "/automations", icon: Zap },
@@ -80,7 +81,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: "Contacts & Companies",
     items: [
       { label: "Leads", href: "/leads", icon: ListChecks },
-      { label: "Contacts", href: "/email-engine/contacts", icon: CircleUserRound },
+      { label: "Contacts", href: "/contacts", icon: CircleUserRound },
       { label: "Companies", href: "/email-engine/companies", icon: Building2 },
     ],
   },

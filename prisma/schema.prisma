@@ -509,6 +509,7 @@ model EmailEventOp {
 model EmailQueueOp {
   id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   campaignId        String?   @map("campaign_id") @db.Uuid
+  leadId            String?   @map("lead_id") @db.Uuid
   contactId         String?   @map("contact_id") @db.Uuid
   recipientId       String?   @map("recipient_id") @db.Uuid
   recipientEmail    String    @map("recipient_email")
@@ -527,6 +528,7 @@ model EmailQueueOp {
   updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([campaignId])
+  @@index([leadId])
   @@index([contactId])
   @@index([recipientId])
   @@index([status])

@@ -7,12 +7,12 @@ import { requireActiveUser } from "@/lib/auth/access";
 import { writeAuditEvent } from "@/lib/audit";
 import { getPrisma } from "@/lib/prisma";
 import { ensureSendSettings } from "@/lib/mail/data";
+import { enqueueManualCampaign, processEmailQueue, queueSingleEmail } from "@/lib/mail/queue";
 import { normalizeEmail, renderTemplate } from "@/lib/mail/render-template";
-import { sendEmail } from "@/lib/mail/smtp";
 
 type ActionState = { ok: boolean; message: string };
 
-const MAIL_PATHS = ["/mail", "/mail/contacts", "/mail/companies", "/mail/lists", "/mail/templates", "/mail/campaigns", "/mail/events", "/mail/suppressions", "/mail/settings", "/mail/send"];
+const MAIL_PATHS = ["/contacts", "/mail", "/mail/contacts", "/mail/companies", "/mail/lists", "/mail/templates", "/mail/campaigns", "/mail/events", "/mail/suppressions", "/mail/settings", "/mail/send", "/email-engine/queue", "/email-engine/overview", "/email-engine/deliverability"];
 const UNSENDABLE_CONTACT_STATUSES = new Set(["bounced", "unsubscribed", "do_not_contact", "archived"]);
 
 function value(formData: FormData, key: string) {
@@ -340,9 +340,7 @@ async function canSendTo(email: string, contactStatus?: string | null) {
 }
 
 export async function sendSingleEmail(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const actor = await requireActiveUser();
-  const settings = await ensureSendSettings();
-  if (!settings.enabled) return { ok: false, message: "Sending disabled in /mail/settings" };
+  const actor = await requireActiveUser(["OWNER", "ADMIN"]);
   const to = normalizeEmail(formData.get("to"));
   if (!to) return { ok: false, message: "to is required" };
   const subject = required(formData, "subject");
@@ -351,47 +349,17 @@ export async function sendSingleEmail(_prev: ActionState, formData: FormData): P
   const contactId = value(formData, "contact_id");
   const campaignId = value(formData, "campaign_id");
   const recipientId = value(formData, "recipient_id");
-  const blocked = await canSendTo(to);
-  if (blocked) return { ok: false, message: blocked };
-  await logEvent({ campaignId, recipientId, contactId, eventType: "send_attempted", metadata: { to, subject } });
-  const result = await sendEmail({ to, subject, html: html ?? undefined, text: text ?? undefined });
-  if (result.ok) {
-    if (recipientId) {
-      await getPrisma().$executeRaw`
-        UPDATE email_campaign_recipients
-        SET status = 'sent', sent_at = now(), provider_message_id = ${result.messageId ?? null}, last_error = NULL, updated_at = now()
-        WHERE id = ${recipientId}::uuid
-      `;
-    }
-    await logEvent({ campaignId, recipientId, contactId, eventType: "sent", metadata: { messageId: result.messageId, response: result.response } });
-    await writeAuditEvent({ actor, entityType: "email_send", entityId: recipientId, action: "sent", metadata: { to, campaignId } });
-    refreshMail();
-    return { ok: true, message: `Sent${result.messageId ? `: ${result.messageId}` : ""}` };
-  }
-  if (recipientId) {
-    await getPrisma().$executeRaw`
-      UPDATE email_campaign_recipients
-      SET status = 'send_failed', last_error = ${result.error ?? "Send failed"}, updated_at = now()
-      WHERE id = ${recipientId}::uuid
-    `;
-  }
-  await logEvent({ campaignId, recipientId, contactId, eventType: "send_failed", metadata: { error: result.error } });
-  await writeAuditEvent({ actor, entityType: "email_send", entityId: recipientId, action: "send_failed", metadata: { to, campaignId, error: result.error } });
+  const result = await queueSingleEmail({ to, subject, html, text, campaignId, contactId, recipientId });
+  await writeAuditEvent({ actor, entityType: "email_queue", entityId: result.id, action: result.queued ? "queue_single" : "queue_single_skipped", metadata: { to, campaignId, result } });
   refreshMail();
-  return { ok: false, message: result.error ?? "Send failed" };
+  if (result.queued) return { ok: true, message: `Queued${result.id ? `: ${result.id}` : ""}` };
+  if (result.suppressed) return { ok: false, message: result.reason ?? "Suppressed" };
+  return { ok: false, message: "Duplicate queue item" };
 }
 
 export async function sendCampaignBatch(formData: FormData) {
-  const actor = await requireActiveUser();
+  const actor = await requireActiveUser(["OWNER", "ADMIN"]);
   const campaignId = required(formData, "campaign_id");
-  const settings = await ensureSendSettings();
-  if (!settings.enabled) throw new Error("Sending disabled in /mail/settings");
-  const [today] = await getPrisma().$queryRaw<Array<{ count: bigint }>>`
-    SELECT count(*) FROM email_events WHERE event_type = 'sent' AND created_at >= current_date
-  `;
-  const remaining = Math.max(0, settings.daily_limit - Number(today.count));
-  const limit = Math.min(settings.batch_size, remaining);
-  if (limit <= 0) throw new Error("Daily send limit reached");
   const recipients = await getPrisma().$queryRaw<
     Array<{ id: string; contact_id: string; email: string; status: string; contact_status: string; personalized_subject: string | null; personalized_html: string | null; personalized_text: string | null }>
   >`
@@ -401,10 +369,10 @@ export async function sendCampaignBatch(formData: FormData) {
     WHERE r.campaign_id = ${campaignId}::uuid
       AND r.status IN ('draft_ready', 'send_failed')
     ORDER BY r.created_at ASC
-    LIMIT ${limit}
+    LIMIT 500
   `;
-  let sent = 0;
-  let failed = 0;
+  let queued = 0;
+  let duplicate = 0;
   let suppressed = 0;
   for (const recipient of recipients) {
     const blocked = await canSendTo(recipient.email, recipient.contact_status);
@@ -414,32 +382,64 @@ export async function sendCampaignBatch(formData: FormData) {
       await logEvent({ campaignId, recipientId: recipient.id, contactId: recipient.contact_id, eventType: "status_changed", metadata: { status: "suppressed", reason: blocked } });
       continue;
     }
-    await logEvent({ campaignId, recipientId: recipient.id, contactId: recipient.contact_id, eventType: "send_attempted", metadata: { to: recipient.email } });
-    await getPrisma().$executeRaw`UPDATE email_campaign_recipients SET status = 'sending', updated_at = now() WHERE id = ${recipient.id}::uuid`;
-    const result = await sendEmail({
+    const result = await queueSingleEmail({
       to: recipient.email,
       subject: recipient.personalized_subject ?? "",
       html: recipient.personalized_html ?? undefined,
       text: recipient.personalized_text ?? undefined,
+      campaignId,
+      contactId: recipient.contact_id,
+      recipientId: recipient.id,
     });
-    if (result.ok) {
-      sent += 1;
-      await getPrisma().$executeRaw`
-        UPDATE email_campaign_recipients SET status = 'sent', sent_at = now(), provider_message_id = ${result.messageId ?? null}, last_error = NULL, updated_at = now()
-        WHERE id = ${recipient.id}::uuid
-      `;
-      await logEvent({ campaignId, recipientId: recipient.id, contactId: recipient.contact_id, eventType: "sent", metadata: { messageId: result.messageId } });
+    if (result.queued) {
+      queued += 1;
+      await getPrisma().$executeRaw`UPDATE email_campaign_recipients SET status = 'sending', last_error = NULL, updated_at = now() WHERE id = ${recipient.id}::uuid`;
     } else {
-      failed += 1;
-      await getPrisma().$executeRaw`
-        UPDATE email_campaign_recipients SET status = 'send_failed', last_error = ${result.error ?? "Send failed"}, updated_at = now()
-        WHERE id = ${recipient.id}::uuid
-      `;
-      await logEvent({ campaignId, recipientId: recipient.id, contactId: recipient.contact_id, eventType: "send_failed", metadata: { error: result.error } });
+      duplicate += result.duplicate ? 1 : 0;
+      suppressed += result.suppressed ? 1 : 0;
     }
   }
-  await writeAuditEvent({ actor, entityType: "email_campaign", entityId: campaignId, action: "send_batch", metadata: { sent, failed, suppressed } });
+  await getPrisma().$executeRaw`UPDATE email_campaigns SET status = 'queued', updated_at = now() WHERE id = ${campaignId}::uuid`;
+  await writeAuditEvent({ actor, entityType: "email_campaign", entityId: campaignId, action: "queue_batch", metadata: { selected: recipients.length, queued, duplicate, suppressed } });
   refreshMail();
+}
+
+export async function processEmailQueueAction(_prev: ActionState, _formData: FormData): Promise<ActionState> {
+  const actor = await requireActiveUser(["OWNER", "ADMIN"]);
+  const result = await processEmailQueue(actor);
+  refreshMail();
+  return { ok: result.ok, message: result.message };
+}
+
+function csvIds(value: FormDataEntryValue | null) {
+  return String(value ?? "")
+    .split(/[,\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export async function enqueueManualCampaignAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const actor = await requireActiveUser(["OWNER", "ADMIN"]);
+  const source = value(formData, "source") ?? "contacts";
+  if (!["contacts", "leads", "both"].includes(source)) return { ok: false, message: "source is required" };
+  try {
+    const result = await enqueueManualCampaign({
+      name: required(formData, "name"),
+      source: source as "contacts" | "leads" | "both",
+      contactIds: csvIds(formData.get("contact_ids")),
+      leadIds: csvIds(formData.get("lead_ids")),
+      subject: required(formData, "subject"),
+      html: value(formData, "html"),
+      text: value(formData, "text"),
+    }, actor);
+    refreshMail();
+    return {
+      ok: true,
+      message: `Campaign queued ${result.queued}/${result.selected}. Missing ${result.skipped_missing_email}. Suppressed ${result.skipped_suppressed}. Duplicates ${result.skipped_duplicate}. Errors ${result.errors}.`,
+    };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Campaign enqueue failed" };
+  }
 }
 
 export async function updateRecipientStatus(formData: FormData) {
@@ -507,7 +507,7 @@ export async function removeSuppression(formData: FormData) {
 }
 
 export async function updateSendSettings(formData: FormData) {
-  const actor = await requireActiveUser();
+  const actor = await requireActiveUser(["OWNER", "ADMIN"]);
   const settings = await ensureSendSettings();
   await getPrisma().$executeRaw`
     UPDATE email_send_settings

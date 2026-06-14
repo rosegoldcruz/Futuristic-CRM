@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import type { AppUser } from "@/lib/auth/access";
 import { writeAuditEvent } from "@/lib/audit";
 import { getPrisma } from "@/lib/prisma";
+import { queueSingleEmail } from "@/lib/mail/queue";
 import { normalizeEmail, renderTemplate } from "@/lib/mail/render-template";
 
 type JsonInput = Prisma.InputJsonValue;
@@ -332,18 +333,28 @@ export async function queueCampaign(campaignId: string, actor: AppUser) {
   `;
 
   let queued = 0;
+  let skippedDuplicate = 0;
+  let skippedSuppressed = 0;
   for (const recipient of recipients) {
-    await getPrisma().$executeRaw`
-      INSERT INTO email_queue (campaign_id, contact_id, recipient_id, recipient_email, subject, body_html, body_text, status, next_attempt_at)
-      VALUES (${campaignId}::uuid, ${recipient.contact_id}::uuid, ${recipient.id}::uuid, ${recipient.email}, ${recipient.subject ?? ""}, ${recipient.html ?? recipient.text ?? ""}, ${recipient.text}, 'queued', now())
-    `;
-    queued += 1;
+    const result = await queueSingleEmail({
+      to: recipient.email,
+      subject: recipient.subject ?? "",
+      html: recipient.html,
+      text: recipient.text,
+      campaignId,
+      contactId: recipient.contact_id,
+      recipientId: recipient.id,
+      scheduledAt: new Date(),
+    });
+    if (result.queued) queued += 1;
+    else if (result.duplicate) skippedDuplicate += 1;
+    else if (result.suppressed) skippedSuppressed += 1;
   }
   await getPrisma().$executeRaw`
     UPDATE email_campaigns SET status = 'queued', updated_at = now() WHERE id = ${campaignId}::uuid
   `;
-  await writeAuditEvent({ actor, entityType: "email_campaign", entityId: campaignId, action: "queue", metadata: { queued } });
-  return { campaignId, queued };
+  await writeAuditEvent({ actor, entityType: "email_campaign", entityId: campaignId, action: "queue", metadata: { queued, skippedDuplicate, skippedSuppressed } });
+  return { campaignId, queued, skippedDuplicate, skippedSuppressed };
 }
 
 export async function listCampaigns() {

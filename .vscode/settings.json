@@ -1,3 +1,4 @@
 {
-    "workbench.editorLargeFileConfirmation": 300
+    "workbench.editorLargeFileConfirmation": 300,
+    "prisma.pinToPrisma6": true
 }

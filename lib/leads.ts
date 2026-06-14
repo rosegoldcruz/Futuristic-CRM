@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import type { AppUser } from "@/lib/auth/access";
 import { writeAuditEvent } from "@/lib/audit";
 import { getPrisma } from "@/lib/prisma";
@@ -33,6 +33,8 @@ export type LeadListFilters = {
   interestLevel?: string;
   limit?: number;
   offset?: number;
+  sort?: string;
+  dir?: string;
 };
 
 function trim(value: unknown) {
@@ -78,6 +80,45 @@ function parseDecimal(value: unknown) {
   return number;
 }
 
+function leadSortClause(sort?: string, dir?: string) {
+  const direction = dir === "asc" ? Prisma.sql`ASC` : Prisma.sql`DESC`;
+  const sortMap: Record<string, Prisma.Sql> = {
+    name: Prisma.sql`lower(concat_ws(' ', l.first_name, l.last_name))`,
+    company: Prisma.sql`lower(coalesce(l.company_name, co.name, ''))`,
+    phone: Prisma.sql`lower(coalesce(l.phone, ''))`,
+    email: Prisma.sql`lower(coalesce(l.email, ''))`,
+    status: Prisma.sql`l.status`,
+    source: Prisma.sql`lower(coalesce(l.source, ''))`,
+    assignedTo: Prisma.sql`lower(coalesce(l.assigned_to, ''))`,
+    estimatedValue: Prisma.sql`l.estimated_value`,
+    lastContactedAt: Prisma.sql`l.last_contacted_at`,
+    createdAt: Prisma.sql`l.created_at`,
+    updatedAt: Prisma.sql`l.updated_at`,
+  };
+  const column = sortMap[sort ?? "createdAt"] ?? sortMap.createdAt;
+  return Prisma.sql`${column} ${direction} NULLS LAST, l.created_at DESC`;
+}
+
+function leadWhereClause(input: {
+  search: string;
+  status: string;
+  source: string;
+  campaign: string;
+  assignedTo: string;
+  interestLevel: string;
+}) {
+  const searchPattern = `%${input.search}%`;
+  return Prisma.sql`
+    l.archived_at IS NULL
+      AND (${input.search} = '' OR l.email ILIKE ${searchPattern} OR l.phone ILIKE ${searchPattern} OR l.company_name ILIKE ${searchPattern} OR l.notes ILIKE ${searchPattern} OR concat_ws(' ', l.first_name, l.last_name) ILIKE ${searchPattern})
+      AND (${input.status} = '' OR l.status = ${input.status})
+      AND (${input.source} = '' OR l.source = ${input.source})
+      AND (${input.campaign} = '' OR l.campaign = ${input.campaign})
+      AND (${input.assignedTo} = '' OR l.assigned_to = ${input.assignedTo})
+      AND (${input.interestLevel} = '' OR l.interest_level = ${input.interestLevel})
+  `;
+}
+
 export async function addLeadEvent(leadId: string, eventType: string, metadata?: JsonInput) {
   await getPrisma().$executeRaw`
     INSERT INTO lead_events (lead_id, event_type, metadata)
@@ -119,6 +160,8 @@ export async function listLeads(filters: LeadListFilters = {}) {
   const interestLevel = trim(filters.interestLevel) ?? "";
   const limit = Math.min(Math.max(filters.limit ?? 100, 1), 250);
   const offset = Math.max(filters.offset ?? 0, 0);
+  const where = leadWhereClause({ search, status, source, campaign, assignedTo, interestLevel });
+  const orderBy = leadSortClause(filters.sort, filters.dir);
 
   return getPrisma().$queryRaw<
     Array<{
@@ -142,6 +185,7 @@ export async function listLeads(filters: LeadListFilters = {}) {
       contact_id: string | null;
       linked_company_name: string | null;
       linked_contact_email: string | null;
+      recent_notes: Array<{ id: string; body: string; created_at: string; created_by: string | null }>;
       created_at: Date;
       updated_at: Date;
     }>
@@ -149,21 +193,51 @@ export async function listLeads(filters: LeadListFilters = {}) {
     SELECT l.id::text, l.first_name, l.last_name, l.email, l.phone, l.company_name, l.title, l.source, l.campaign,
       l.status, l.interest_level, l.assigned_to, l.estimated_value::text, l.last_contacted_at, l.next_follow_up_at,
       l.notes, l.company_id::text, l.contact_id::text, co.name AS linked_company_name, c.email AS linked_contact_email,
+      coalesce(notes.recent_notes, '[]'::jsonb) AS recent_notes,
       l.created_at, l.updated_at
     FROM leads l
     LEFT JOIN email_companies co ON co.id = l.company_id
     LEFT JOIN email_contacts c ON c.id = l.contact_id
-    WHERE l.archived_at IS NULL
-      AND (${search} = '' OR l.email ILIKE ${`%${search}%`} OR l.phone ILIKE ${`%${search}%`} OR l.company_name ILIKE ${`%${search}%`} OR concat_ws(' ', l.first_name, l.last_name) ILIKE ${`%${search}%`})
-      AND (${status} = '' OR l.status = ${status})
-      AND (${source} = '' OR l.source = ${source})
-      AND (${campaign} = '' OR l.campaign = ${campaign})
-      AND (${assignedTo} = '' OR l.assigned_to = ${assignedTo})
-      AND (${interestLevel} = '' OR l.interest_level = ${interestLevel})
-    ORDER BY l.created_at DESC
+    LEFT JOIN LATERAL (
+      SELECT jsonb_agg(
+        jsonb_build_object(
+          'id', ranked.id::text,
+          'body', ranked.body,
+          'created_at', ranked.created_at,
+          'created_by', ranked.created_by
+        )
+        ORDER BY ranked.created_at DESC
+      ) AS recent_notes
+      FROM (
+        SELECT id, body, created_at, created_by
+        FROM lead_notes
+        WHERE lead_id = l.id
+        ORDER BY created_at DESC
+        LIMIT 5
+      ) ranked
+    ) notes ON true
+    WHERE ${where}
+    ORDER BY ${orderBy}
     LIMIT ${limit}
     OFFSET ${offset}
   `;
+}
+
+export async function countLeads(filters: LeadListFilters = {}) {
+  const search = trim(filters.search) ?? "";
+  const status = trim(filters.status) ?? "";
+  const source = trim(filters.source) ?? "";
+  const campaign = trim(filters.campaign) ?? "";
+  const assignedTo = trim(filters.assignedTo) ?? "";
+  const interestLevel = trim(filters.interestLevel) ?? "";
+  const where = leadWhereClause({ search, status, source, campaign, assignedTo, interestLevel });
+  const [row] = await getPrisma().$queryRaw<Array<{ total: bigint }>>`
+    SELECT count(*) AS total
+    FROM leads l
+    LEFT JOIN email_companies co ON co.id = l.company_id
+    WHERE ${where}
+  `;
+  return Number(row?.total ?? 0);
 }
 
 export async function getLead(id: string) {

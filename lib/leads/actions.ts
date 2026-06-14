@@ -22,6 +22,7 @@ function value(formData: FormData, key: string) {
 
 function required(formData: FormData, key: string) {
   const text = value(formData, key);
+  if (!text && key === "body") throw new Error("Note body is required");
   if (!text) throw new Error(`${key} is required`);
   return text;
 }
@@ -120,7 +121,7 @@ export async function addLeadNoteAction(_prev: ActionState, formData: FormData):
     const actor = await getCurrentUserOrThrow();
     await addLeadNote(leadId(formData), required(formData, "body"), actor);
     refreshLeads();
-    return { ok: true, message: "Note added" };
+    return { ok: true, message: "Note saved" };
   } catch (error) {
     logUnexpected("addLeadNoteAction", error);
     return { ok: false, message: validationMessage(error) };
