@@ -8,6 +8,8 @@ export default withAuth(
     // Allow auth API routes, login, logout, access-pending, and home
     if (
       pathname.startsWith("/api/auth") ||
+      pathname.startsWith("/api/email-engine/unsubscribe") ||
+      pathname.startsWith("/api/intake/vulpine-supply") ||
       pathname.startsWith("/login") ||
       pathname.startsWith("/logout") ||
       pathname.startsWith("/access-pending") ||
@@ -26,6 +28,8 @@ export default withAuth(
         // Public paths — no auth required
         if (
           pathname.startsWith("/api/auth") ||
+          pathname.startsWith("/api/email-engine/unsubscribe") ||
+          pathname.startsWith("/api/intake/vulpine-supply") ||
           pathname.startsWith("/login") ||
           pathname.startsWith("/logout") ||
           pathname.startsWith("/access-pending") ||
