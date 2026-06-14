@@ -17,6 +17,7 @@ import {
   Home,
   Layers3,
   LayoutDashboard,
+  ListChecks,
   Send,
   Settings,
   ShieldCheck,
@@ -69,6 +70,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: "Core",
     items: [
       { label: "Dashboard", href: "/dashboard", icon: Home },
+      { label: "Leads", href: "/leads", icon: ListChecks },
       { label: "Email Engine", href: "/email-engine", icon: Send, children: EMAIL_ENGINE_ITEMS },
       { label: "Mail Ops", href: "/mail", icon: Send, children: MAIL_ITEMS },
       { label: "Automations", href: "/automations", icon: Zap },
@@ -77,6 +79,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: "Contacts & Companies",
     items: [
+      { label: "Leads", href: "/leads", icon: ListChecks },
       { label: "Contacts", href: "/email-engine/contacts", icon: CircleUserRound },
       { label: "Companies", href: "/email-engine/companies", icon: Building2 },
     ],

@@ -356,6 +356,7 @@ model EmailCompanyOp {
   createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   contacts    EmailContactOp[]
+  leads       LeadOp[]
 
   @@index([domain])
   @@index([name])
@@ -382,6 +383,7 @@ model EmailContactOp {
   recipients  EmailCampaignRecipientOp[]
   events      EmailEventOp[]
   inbound     EmailInboundMessageOp[]
+  leads       LeadOp[]
 
   @@index([companyId])
   @@index([email])
@@ -584,6 +586,89 @@ model EmailSendSettingsOp {
   updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("email_send_settings")
+}
+
+model LeadOp {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId       String?          @map("company_id") @db.Uuid
+  contactId       String?          @map("contact_id") @db.Uuid
+  firstName       String?          @map("first_name")
+  lastName        String?          @map("last_name")
+  email           String?
+  phone           String?
+  companyName     String?          @map("company_name")
+  title           String?
+  source          String?
+  campaign        String?
+  status          String           @default("new")
+  interestLevel   String           @default("unknown") @map("interest_level")
+  assignedTo      String?          @map("assigned_to")
+  estimatedValue  Decimal?         @map("estimated_value") @db.Decimal(12, 2)
+  lastContactedAt DateTime?        @map("last_contacted_at") @db.Timestamptz(6)
+  nextFollowUpAt  DateTime?        @map("next_follow_up_at") @db.Timestamptz(6)
+  notes           String?
+  archivedAt      DateTime?        @map("archived_at") @db.Timestamptz(6)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  company         EmailCompanyOp?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contact         EmailContactOp?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  events          LeadEventOp[]
+  notesList       LeadNoteOp[]
+  assignments     LeadAssignmentOp[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([status])
+  @@index([source])
+  @@index([campaign])
+  @@index([assignedTo])
+  @@index([interestLevel])
+  @@index([nextFollowUpAt])
+  @@index([createdAt])
+  @@index([companyId])
+  @@index([contactId])
+  @@map("leads")
+}
+
+model LeadEventOp {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  leadId    String   @map("lead_id") @db.Uuid
+  eventType String   @map("event_type")
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  lead      LeadOp   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("lead_events")
+}
+
+model LeadNoteOp {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  leadId    String   @map("lead_id") @db.Uuid
+  body      String
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  lead      LeadOp   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([createdAt])
+  @@map("lead_notes")
+}
+
+model LeadAssignmentOp {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  leadId     String   @map("lead_id") @db.Uuid
+  assignedTo String   @map("assigned_to")
+  assignedBy String?  @map("assigned_by")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  lead       LeadOp   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([assignedTo])
+  @@index([createdAt])
+  @@map("lead_assignments")
 }
 
 model FileFolderOp {

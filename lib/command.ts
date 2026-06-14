@@ -15,8 +15,16 @@ import {
   retryQueueItem,
   cancelQueueItem,
 } from "@/lib/email-engine";
-import { attachFileToEntity, createFolder, moveFile, archiveFile } from "@/lib/files";
 import { triggerN8nWebhook } from "@/lib/automation";
+import {
+  addLeadNote,
+  assignLead,
+  convertLeadToContactAndCompany,
+  createLead,
+  listLeads,
+  updateLead,
+  updateLeadStatus,
+} from "@/lib/leads";
 
 export type CommandParams = Record<string, unknown>;
 
@@ -90,27 +98,43 @@ export const registeredCommandActions: Record<string, RegisteredCommand> = {
     description: "Remove an email suppression.",
     run: (params, actor) => removeSuppression(requiredString(params, "suppression_id"), actor),
   },
-  create_folder: {
-    description: "Create a file folder.",
-    run: (params, actor) => createFolder({ name: requiredString(params, "name"), parentId: typeof params.parent_id === "string" ? params.parent_id : null }, actor),
+  create_lead: {
+    description: "Create a CRM lead.",
+    run: (params, actor) => createLead(params, actor),
   },
-  move_file: {
-    description: "Move a file to a folder.",
-    run: (params, actor) => moveFile(requiredString(params, "file_id"), typeof params.folder_id === "string" ? params.folder_id : null, actor),
+  update_lead: {
+    description: "Update a CRM lead.",
+    run: (params, actor) => updateLead(requiredString(params, "lead_id"), params, actor),
   },
-  archive_file: {
-    description: "Archive a file.",
-    run: (params, actor) => archiveFile(requiredString(params, "file_id"), actor),
+  update_lead_status: {
+    description: "Update a CRM lead status.",
+    run: (params, actor) => updateLeadStatus(requiredString(params, "lead_id"), requiredString(params, "status"), actor),
   },
-  attach_file: {
-    description: "Attach a file to a company, contact, campaign, or list.",
-    run: (params, actor) =>
-      attachFileToEntity(
-        requiredString(params, "file_id"),
-        requiredString(params, "owner_type"),
-        requiredString(params, "owner_id"),
-        actor
-      ),
+  assign_lead: {
+    description: "Assign a CRM lead.",
+    run: (params, actor) => assignLead(requiredString(params, "lead_id"), requiredString(params, "assigned_to"), actor),
+  },
+  add_lead_note: {
+    description: "Add a CRM lead note.",
+    run: (params, actor) => addLeadNote(requiredString(params, "lead_id"), requiredString(params, "body"), actor),
+  },
+  convert_lead: {
+    description: "Convert a CRM lead to contact/company records.",
+    run: (params, actor) => convertLeadToContactAndCompany(requiredString(params, "lead_id"), actor),
+  },
+  list_leads: {
+    description: "List CRM leads with filters.",
+    run: (params) =>
+      listLeads({
+        search: typeof params.search === "string" ? params.search : undefined,
+        status: typeof params.status === "string" ? params.status : undefined,
+        source: typeof params.source === "string" ? params.source : undefined,
+        campaign: typeof params.campaign === "string" ? params.campaign : undefined,
+        assignedTo: typeof params.assigned_to === "string" ? params.assigned_to : undefined,
+        interestLevel: typeof params.interest_level === "string" ? params.interest_level : undefined,
+        limit: typeof params.limit === "number" ? params.limit : undefined,
+        offset: typeof params.offset === "number" ? params.offset : undefined,
+      }),
   },
   trigger_n8n_webhook: {
     description: "Trigger a configured n8n webhook path and record the automation run.",
