@@ -205,6 +205,7 @@ export async function createLead(input: LeadInput, actor: AppUser) {
 }
 
 export async function updateLead(id: string, input: LeadInput, actor: AppUser) {
+  await getLead(id);
   const email = normalizeEmail(input.email);
   const duplicate = await dedupeLeadByEmailOrPhone({ ...input, email }, id);
   if (duplicate) {
@@ -239,6 +240,7 @@ export async function updateLead(id: string, input: LeadInput, actor: AppUser) {
 }
 
 export async function archiveLead(id: string, actor: AppUser) {
+  await getLead(id);
   await getPrisma().$executeRaw`UPDATE leads SET archived_at = now(), updated_at = now() WHERE id = ${id}::uuid`;
   await addLeadEvent(id, "archived", {});
   await writeAuditEvent({ actor, entityType: "lead", entityId: id, action: "archive" });
@@ -246,6 +248,7 @@ export async function archiveLead(id: string, actor: AppUser) {
 }
 
 export async function addLeadNote(leadId: string, body: string, actor: AppUser) {
+  await getLead(leadId);
   const cleanBody = trim(body);
   if (!cleanBody) throw new Error("note body is required");
   const [note] = await getPrisma().$queryRaw<Array<{ id: string }>>`
@@ -259,6 +262,7 @@ export async function addLeadNote(leadId: string, body: string, actor: AppUser) 
 }
 
 export async function assignLead(leadId: string, assignedTo: string, actor: AppUser) {
+  await getLead(leadId);
   const cleanAssignedTo = trim(assignedTo);
   if (!cleanAssignedTo) throw new Error("assignedTo is required");
   const [assignment] = await getPrisma().$queryRaw<Array<{ id: string }>>`
@@ -273,6 +277,7 @@ export async function assignLead(leadId: string, assignedTo: string, actor: AppU
 }
 
 export async function updateLeadStatus(leadId: string, status: string, actor: AppUser) {
+  await getLead(leadId);
   const nextStatus = validateStatus(status);
   await getPrisma().$executeRaw`
     UPDATE leads

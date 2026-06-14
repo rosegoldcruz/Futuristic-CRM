@@ -128,8 +128,9 @@ export default async function LeadsPage({
                 </div>
               </div>
 
-              <form action={updateLeadAction} className="mt-4 grid gap-2 md:grid-cols-4">
-                <input type="hidden" name="id" value={lead.id} />
+              <StatefulForm action={updateLeadAction} submitLabel="Save">
+                <div className="mt-4 grid gap-2 md:grid-cols-4">
+                <input type="hidden" name="leadId" value={lead.id} />
                 <input name="firstName" defaultValue={lead.first_name ?? ""} className={inputClass()} />
                 <input name="lastName" defaultValue={lead.last_name ?? ""} className={inputClass()} />
                 <input name="email" defaultValue={lead.email ?? ""} className={inputClass()} />
@@ -144,38 +145,37 @@ export default async function LeadsPage({
                 <input name="estimatedValue" defaultValue={lead.estimated_value ?? ""} className={inputClass()} />
                 <input name="nextFollowUpAt" type="datetime-local" className={inputClass()} />
                 <input name="notes" defaultValue={lead.notes ?? ""} className={inputClass()} />
-                <Button type="submit" size="sm">Save</Button>
-              </form>
+                </div>
+              </StatefulForm>
 
               <div className="mt-3 flex flex-wrap gap-2">
                 {LEAD_STATUSES.map((item) => (
-                  <form key={item} action={updateLeadStatusAction}>
-                    <input type="hidden" name="id" value={lead.id} />
+                  <StatefulForm key={item} action={updateLeadStatusAction} submitLabel={item}>
+                    <input type="hidden" name="leadId" value={lead.id} />
                     <input type="hidden" name="status" value={item} />
-                    <Button type="submit" size="sm" variant={item === lead.status ? "secondary" : "ghost"} disabled={item === lead.status}>{item}</Button>
-                  </form>
+                  </StatefulForm>
                 ))}
               </div>
 
               <div className="mt-3 grid gap-2 lg:grid-cols-[1fr_1fr_160px_120px]">
-                <form action={assignLeadAction} className="flex gap-2">
-                  <input type="hidden" name="id" value={lead.id} />
+                <StatefulForm action={assignLeadAction} submitLabel="Assign">
+                  <input type="hidden" name="leadId" value={lead.id} />
                   <input name="assignedTo" placeholder="owner@vulpinehomes.com" className={inputClass()} />
-                  <Button type="submit" size="sm">Assign</Button>
-                </form>
-                <form action={addLeadNoteAction} className="flex gap-2">
-                  <input type="hidden" name="id" value={lead.id} />
+                </StatefulForm>
+                <StatefulForm action={addLeadNoteAction} submitLabel="Note">
+                  <input type="hidden" name="leadId" value={lead.id} />
                   <input name="body" placeholder="Add note" className={inputClass()} />
-                  <Button type="submit" size="sm">Note</Button>
-                </form>
-                <form action={convertLeadAction}>
-                  <input type="hidden" name="id" value={lead.id} />
-                  <Button type="submit" size="sm" variant="yellow" disabled={!lead.email}>Convert</Button>
-                </form>
-                <form action={archiveLeadAction}>
-                  <input type="hidden" name="id" value={lead.id} />
-                  <Button type="submit" size="sm" variant="destructive">Archive</Button>
-                </form>
+                </StatefulForm>
+                {lead.email ? (
+                  <StatefulForm action={convertLeadAction} submitLabel="Convert">
+                    <input type="hidden" name="leadId" value={lead.id} />
+                  </StatefulForm>
+                ) : (
+                  <div className="border border-borderSubtle px-3 py-2 text-xs uppercase text-textMuted">Convert requires email</div>
+                )}
+                <StatefulForm action={archiveLeadAction} submitLabel="Archive">
+                  <input type="hidden" name="leadId" value={lead.id} />
+                </StatefulForm>
               </div>
             </div>
           ))}
