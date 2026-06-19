@@ -47,3 +47,21 @@ export async function suppressByUnsubscribe(email: string) {
   `;
   await writeAuditEvent({ actor: null, entityType: "email_suppression", action: "unsubscribe", metadata: { email: normalized } });
 }
+
+export async function suppressByBounce(email: string, reason: "bounce" | "complaint" = "bounce", source = "webhook") {
+  const normalized = normalizeEmail(email);
+  if (!normalized) throw new Error("email is required");
+  await getPrisma().$executeRaw`
+    INSERT INTO email_suppressions (email, reason, source)
+    VALUES (${normalized}, ${reason}, ${source})
+    ON CONFLICT (email) DO UPDATE SET reason = ${reason}, source = ${source}
+  `;
+  await getPrisma().$executeRaw`
+    UPDATE email_contacts SET status = 'bounced', updated_at = now() WHERE email = ${normalized}
+  `;
+  await getPrisma().$executeRaw`
+    INSERT INTO email_events (event_type, metadata)
+    VALUES (${reason}, ${JSON.stringify({ email: normalized, source })}::jsonb)
+  `;
+  await writeAuditEvent({ actor: null, entityType: "email_suppression", action: reason, metadata: { email: normalized, source } });
+}

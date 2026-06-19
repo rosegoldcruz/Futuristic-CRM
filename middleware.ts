@@ -9,6 +9,8 @@ export default withAuth(
     if (
       pathname.startsWith("/api/auth") ||
       pathname.startsWith("/api/email-engine/unsubscribe") ||
+      pathname.startsWith("/api/email-engine/webhook") ||
+      pathname.startsWith("/api/email-engine/cron") ||
       pathname.startsWith("/api/intake/vulpine-supply") ||
       pathname.startsWith("/login") ||
       pathname.startsWith("/logout") ||
@@ -29,6 +31,8 @@ export default withAuth(
         if (
           pathname.startsWith("/api/auth") ||
           pathname.startsWith("/api/email-engine/unsubscribe") ||
+          pathname.startsWith("/api/email-engine/webhook") ||
+          pathname.startsWith("/api/email-engine/cron") ||
           pathname.startsWith("/api/intake/vulpine-supply") ||
           pathname.startsWith("/login") ||
           pathname.startsWith("/logout") ||

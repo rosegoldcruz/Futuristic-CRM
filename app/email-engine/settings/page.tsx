@@ -35,7 +35,20 @@ export default async function EmailSettingsPage() {
       </Panel>
       <Panel title="Environment">
         <div className="grid gap-2 text-xs md:grid-cols-2">
-          {["EMAIL_DEFAULT_FROM", "EMAIL_DEFAULT_FROM_NAME", "EMAIL_PROVIDER", "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "N8N_WEBHOOK_URL"].map((name) => (
+          {[
+            "EMAIL_DRY_RUN",
+            "SMTP_HOST",
+            "SMTP_PORT",
+            "SMTP_USER",
+            "SMTP_PASS",
+            "SMTP_FROM",
+            "EMAIL_DEFAULT_FROM",
+            "EMAIL_DEFAULT_FROM_NAME",
+            "EMAIL_PROVIDER",
+            "EMAIL_WEBHOOK_SECRET",
+            "EMAIL_CRON_SECRET",
+            "N8N_WEBHOOK_URL",
+          ].map((name) => (
             <div key={name} className="flex items-center justify-between gap-3 border border-borderSubtle bg-bgDark p-3">
               <span className="text-textPrimary">{name}</span>
               <span className={process.env[name] ? "text-cyber-green" : "text-cyber-red"}>{envStatus(name)}</span>

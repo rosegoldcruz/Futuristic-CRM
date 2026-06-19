@@ -239,11 +239,35 @@ export async function queueSingleEmail(input: {
     return { queued: false, suppressed: true, reason: blocked };
   }
   const unsubscribeUrl = input.campaignId ? buildUnsubscribeUrl(email) : null;
-  const html = unsubscribeUrl
-    ? `${input.html ?? input.text ?? ""}<p style="font-size:12px;color:#667085;margin-top:24px">To stop receiving campaign emails, <a href="${unsubscribeUrl}">unsubscribe here</a>.</p>`
+
+  // Fetch physical_address for CAN-SPAM compliance footer (campaign sends only).
+  let physicalAddress: string | null = null;
+  if (input.campaignId) {
+    const settings = await ensureSendSettings();
+    physicalAddress = settings.physical_address ?? null;
+  }
+
+  const footerParts: string[] = [];
+  if (unsubscribeUrl) {
+    footerParts.push(`<a href="${unsubscribeUrl}">Unsubscribe</a>`);
+  }
+  if (physicalAddress) {
+    footerParts.push(physicalAddress.replace(/\n/g, ", "));
+  }
+
+  const footerHtml = footerParts.length > 0
+    ? `<p style="font-size:12px;color:#667085;margin-top:24px">${footerParts.join(" &nbsp;|&nbsp; ")}</p>`
+    : "";
+  const footerText = [
+    unsubscribeUrl ? `Unsubscribe: ${unsubscribeUrl}` : "",
+    physicalAddress ? `Address: ${physicalAddress.replace(/\n/g, ", ")}` : "",
+  ].filter(Boolean).join("\n");
+
+  const html = footerHtml
+    ? `${input.html ?? input.text ?? ""}${footerHtml}`
     : input.html ?? input.text ?? "";
-  const text = unsubscribeUrl
-    ? `${input.text ?? ""}\n\nUnsubscribe: ${unsubscribeUrl}`.trim()
+  const text = footerText
+    ? `${input.text ?? ""}\n\n${footerText}`.trim()
     : input.text ?? null;
 
   const [queue] = await getPrisma().$queryRaw<Array<{ id: string }>>`

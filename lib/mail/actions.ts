@@ -509,12 +509,14 @@ export async function removeSuppression(formData: FormData) {
 export async function updateSendSettings(formData: FormData) {
   const actor = await requireActiveUser(["OWNER", "ADMIN"]);
   const settings = await ensureSendSettings();
+  const physicalAddress = value(formData, "physical_address");
   await getPrisma().$executeRaw`
     UPDATE email_send_settings
     SET enabled = ${formData.get("enabled") === "on"},
       daily_limit = ${Number(value(formData, "daily_limit") ?? 25)},
       batch_size = ${Number(value(formData, "batch_size") ?? 5)},
       min_seconds_between_sends = ${Number(value(formData, "min_seconds_between_sends") ?? 60)},
+      physical_address = ${physicalAddress},
       updated_at = now()
     WHERE id = ${settings.id}::uuid
   `;

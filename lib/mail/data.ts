@@ -70,8 +70,8 @@ export async function ensureSendSettings() {
     SELECT 25, 5, 60, false
     WHERE NOT EXISTS (SELECT 1 FROM email_send_settings)
   `;
-  const [settings] = await prisma.$queryRaw<Array<{ id: string; daily_limit: number; batch_size: number; min_seconds_between_sends: number; enabled: boolean }>>`
-    SELECT id::text AS id, daily_limit, batch_size, min_seconds_between_sends, enabled
+  const [settings] = await prisma.$queryRaw<Array<{ id: string; daily_limit: number; batch_size: number; min_seconds_between_sends: number; enabled: boolean; physical_address: string | null }>>`
+    SELECT id::text AS id, daily_limit, batch_size, min_seconds_between_sends, enabled, physical_address
     FROM email_send_settings
     ORDER BY created_at ASC
     LIMIT 1

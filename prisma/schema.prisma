@@ -579,13 +579,14 @@ model EmailInboundMessageOp {
 }
 
 model EmailSendSettingsOp {
-  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  dailyLimit          Int      @default(25) @map("daily_limit")
-  batchSize           Int      @default(5) @map("batch_size")
-  minSecondsBetweenSends Int   @default(60) @map("min_seconds_between_sends")
-  enabled             Boolean  @default(false)
-  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                     String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dailyLimit             Int     @default(25) @map("daily_limit")
+  batchSize              Int     @default(5) @map("batch_size")
+  minSecondsBetweenSends Int     @default(60) @map("min_seconds_between_sends")
+  enabled                Boolean @default(false)
+  physicalAddress        String? @map("physical_address")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("email_send_settings")
 }

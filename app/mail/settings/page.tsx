@@ -42,6 +42,22 @@ export default async function MailSettingsPage() {
           <Field label="Daily Limit"><input name="daily_limit" type="number" min="1" max="1000" defaultValue={settings.daily_limit} className={inputClass()} /></Field>
           <Field label="Batch Size"><input name="batch_size" type="number" min="1" max="25" defaultValue={settings.batch_size} className={inputClass()} /></Field>
           <Field label="Seconds Between Sends"><input name="min_seconds_between_sends" type="number" min="1" defaultValue={settings.min_seconds_between_sends} className={inputClass()} /></Field>
+          <div className="md:col-span-4">
+            <Field label="Physical Address (CAN-SPAM required before enabling production sends)">
+              <textarea
+                name="physical_address"
+                rows={3}
+                defaultValue={settings.physical_address ?? ""}
+                placeholder="e.g. 123 Main St, Phoenix, AZ 85001, USA"
+                className={inputClass() + " w-full resize-none"}
+              />
+            </Field>
+            {!settings.physical_address && (
+              <p className="mt-1 text-xs text-cyber-yellow">
+                ⚠ Physical address is required by CAN-SPAM before enabling real sends. It will appear in every campaign email footer.
+              </p>
+            )}
+          </div>
           <Button type="submit">Save Settings</Button>
         </form>
       </Panel>
