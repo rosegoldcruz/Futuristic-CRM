@@ -31,7 +31,7 @@ git push
 
 echo "==> Installing dependencies if package files changed"
 if git diff --name-only HEAD~1 HEAD 2>/dev/null | grep -Eq '^(package-lock\.json|package\.json)$'; then
-  npm install
+  npm ci
 else
   echo "==> package.json/package-lock.json unchanged; skipping npm install"
 fi
