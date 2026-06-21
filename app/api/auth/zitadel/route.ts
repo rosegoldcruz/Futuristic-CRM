@@ -21,6 +21,13 @@ function getSafeCallbackUrl(request: NextRequest) {
   return "/dashboard";
 }
 
+function getRequestOrigin(request: NextRequest) {
+  const proto = request.headers.get("x-forwarded-proto") || request.nextUrl.protocol.replace(":", "");
+  const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || request.nextUrl.host;
+
+  return `${proto}://${host}`;
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -38,6 +45,7 @@ export async function GET(request: NextRequest) {
 
   const { token, cookieValue } = createCsrfToken(secret);
   const callbackUrl = getSafeCallbackUrl(request);
+  const origin = getRequestOrigin(request);
   const action = "/api/auth/signin/zitadel";
 
   const html = `<!doctype html>
@@ -74,7 +82,7 @@ export async function GET(request: NextRequest) {
     path: "/",
   });
 
-  response.cookies.set("__Secure-next-auth.callback-url", new URL(callbackUrl, request.nextUrl.origin).toString(), {
+  response.cookies.set("__Secure-next-auth.callback-url", new URL(callbackUrl, origin).toString(), {
     httpOnly: true,
     secure: true,
     sameSite: "lax",
