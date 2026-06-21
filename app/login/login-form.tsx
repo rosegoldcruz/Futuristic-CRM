@@ -3,19 +3,11 @@
 import Link from "next/link";
 import { LogIn } from "lucide-react";
 import { signIn, useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export function LoginForm() {
-  const router = useRouter();
   const { status } = useSession();
   const [isSigningIn, setIsSigningIn] = useState(false);
-
-  useEffect(() => {
-    if (status === "authenticated") {
-      router.replace("/dashboard");
-    }
-  }, [status, router]);
 
   async function handleSignIn() {
     if (status === "loading" || status === "authenticated" || isSigningIn) {
@@ -49,21 +41,25 @@ export function LoginForm() {
         )}
 
         <div className="flex flex-wrap items-center gap-4">
-          <button
-            type="button"
-            onClick={handleSignIn}
-            disabled={isLoading || status === "authenticated" || isSigningIn}
-            className="inline-flex items-center gap-2 border border-cyber-cyan bg-cyber-cyan px-4 py-2 text-xs font-bold uppercase tracking-wider text-bgDarkest shadow-cyberMd transition hover:bg-transparent hover:text-cyber-cyan disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <LogIn className="h-4 w-4" />
-            {isLoading
-              ? "Loading..."
-              : isSigningIn
-                ? "Redirecting..."
-                : status === "authenticated"
-                  ? "Authenticated"
-                  : "Sign in with Zitadel"}
-          </button>
+          {status === "authenticated" ? (
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-2 border border-cyber-cyan bg-cyber-cyan px-4 py-2 text-xs font-bold uppercase tracking-wider text-bgDarkest shadow-cyberMd transition hover:bg-transparent hover:text-cyber-cyan"
+            >
+              <LogIn className="h-4 w-4" />
+              Go to dashboard
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSignIn}
+              disabled={isLoading || isSigningIn}
+              className="inline-flex items-center gap-2 border border-cyber-cyan bg-cyber-cyan px-4 py-2 text-xs font-bold uppercase tracking-wider text-bgDarkest shadow-cyberMd transition hover:bg-transparent hover:text-cyber-cyan disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <LogIn className="h-4 w-4" />
+              {isLoading ? "Loading..." : isSigningIn ? "Redirecting..." : "Sign in with Zitadel"}
+            </button>
+          )}
 
           <Link
             href="/"
